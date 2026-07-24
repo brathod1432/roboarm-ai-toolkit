@@ -7,8 +7,8 @@ pose, and inverse kinematics solutions.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence
 
 import numpy as np
 
@@ -51,8 +51,8 @@ class JointLimits:
 
     lower: float
     upper: float
-    velocity_max: Optional[float] = None
-    acceleration_max: Optional[float] = None
+    velocity_max: float | None = None
+    acceleration_max: float | None = None
 
 
 @dataclass
@@ -67,7 +67,7 @@ class JointConfig:
     """
 
     dh_params: DHParams
-    limits: Optional[JointLimits] = None
+    limits: JointLimits | None = None
     name: str = ""
     is_variable: bool = True
 
@@ -129,13 +129,13 @@ class IKSolution:
     """
 
     success: bool
-    primary: Optional[JointSolution] = None
-    alternatives: List[JointSolution] = field(default_factory=list)
+    primary: JointSolution | None = None
+    alternatives: list[JointSolution] = field(default_factory=list)
     iterations: int = 0
     residual_error: float = float("inf")
     computation_time_ms: float = 0.0
     solver_name: str = ""
-    messages: List[str] = field(default_factory=list)
+    messages: list[str] = field(default_factory=list)
 
 
 def list_to_array(values: Sequence[float]) -> np.ndarray:

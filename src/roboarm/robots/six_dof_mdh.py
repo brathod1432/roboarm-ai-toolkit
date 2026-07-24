@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List
 
 import numpy as np
 
@@ -44,7 +43,7 @@ _CM2M: float = 1.0 / 100.0
 # Home pose (degrees): [0, 90, 0, 0, 180, 0]
 # ---------------------------------------------------------------------------
 
-_MDH_TABLE: List[dict] = [
+_MDH_TABLE: list[dict] = [
     {"alpha_deg": 0.0, "a_cm": 0.0, "theta_deg": 0.0, "d_cm": 0.0},
     {"alpha_deg": 90.0, "a_cm": 0.0, "theta_deg": 0.0, "d_cm": 0.0},
     {"alpha_deg": 0.0, "a_cm": 15.0, "theta_deg": 0.0, "d_cm": 0.0},
@@ -54,7 +53,7 @@ _MDH_TABLE: List[dict] = [
     {"alpha_deg": 0.0, "a_cm": 0.0, "theta_deg": 0.0, "d_cm": 7.5},
 ]
 
-_JOINT_LIMITS_DEG: List[dict] = [
+_JOINT_LIMITS_DEG: list[dict] = [
     {"lower": -150.0, "upper": 150.0},
     {"lower": 5.0, "upper": 175.0},
     {"lower": -90.0, "upper": 90.0},
@@ -63,7 +62,7 @@ _JOINT_LIMITS_DEG: List[dict] = [
     {"lower": -90.0, "upper": 90.0},
 ]
 
-HOME_POSE_DEG: List[float] = [0.0, 90.0, 0.0, 0.0, 180.0, 0.0]
+HOME_POSE_DEG: list[float] = [0.0, 90.0, 0.0, 0.0, 180.0, 0.0]
 """Default home configuration in degrees."""
 
 HOME_POSE_RAD: np.ndarray = np.array(
@@ -89,7 +88,7 @@ def create_six_dof_mdh() -> RobotArm:
         home = [0.0, math.pi / 2, 0.0, 0.0, math.pi, 0.0]
         pose = robot.forward_kinematics(home)
     """
-    joints: List[JointConfig] = []
+    joints: list[JointConfig] = []
 
     for idx, row in enumerate(_MDH_TABLE):
         alpha = row["alpha_deg"] * _DEG2RAD

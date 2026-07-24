@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from roboarm.agents.tools import ToolRegistry
 
@@ -32,8 +32,8 @@ class AgentMessage:
 
     role: str
     content: str
-    tool_name: Optional[str] = None
-    tool_args: Optional[Dict[str, Any]] = field(default=None)
+    tool_name: str | None = None
+    tool_args: dict[str, Any] | None = field(default=None)
 
 
 class AgentMemory:
@@ -53,7 +53,7 @@ class AgentMemory:
     """
 
     def __init__(self, max_messages: int = 50) -> None:
-        self._messages: List[AgentMessage] = []
+        self._messages: list[AgentMessage] = []
         self._max = max_messages
 
     def add(self, msg: AgentMessage) -> None:
@@ -70,7 +70,7 @@ class AgentMemory:
                 "AgentMemory trimmed %d oldest message(s)", excess,
             )
 
-    def get_history(self) -> List[AgentMessage]:
+    def get_history(self) -> list[AgentMessage]:
         """Return a copy of the stored messages in chronological order.
 
         Returns:

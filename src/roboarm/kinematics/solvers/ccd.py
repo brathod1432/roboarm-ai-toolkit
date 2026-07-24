@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import math
 import time
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -53,7 +53,7 @@ class CCDSolver(IKSolverBase):
         self,
         robot: RobotArm,
         *,
-        config: Optional[IKConfig] = None,
+        config: IKConfig | None = None,
         max_iterations: int = 500,
         tolerance: float = 1e-6,
         **kwargs: object,
@@ -65,14 +65,14 @@ class CCDSolver(IKSolverBase):
         self._planar = _is_planar(robot)
 
         # Build map from variable-joint index to overall joint index
-        self._var_indices: List[int] = [
+        self._var_indices: list[int] = [
             i for i, jc in enumerate(robot.joints) if jc.is_variable
         ]
 
     def solve(
         self,
         target: EndEffectorPose,
-        q0: Optional[Sequence[float]] = None,
+        q0: Sequence[float] | None = None,
     ) -> IKSolution:
         """Run CCD iterations to solve inverse kinematics.
 
@@ -85,7 +85,7 @@ class CCDSolver(IKSolverBase):
         """
         t_start = time.perf_counter()
         n_dof = self._robot.n_dof
-        messages: List[str] = []
+        messages: list[str] = []
 
         q = np.zeros(n_dof, dtype=np.float64)
         if q0 is not None:

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import List, Optional
 
 import numpy as np
 
@@ -43,14 +42,14 @@ def _describe_robot(robot: RobotArm) -> str:
     return "\n".join(lines)
 
 
-def _compute_fk(robot: RobotArm, angles: List[float]) -> str:
+def _compute_fk(robot: RobotArm, angles: list[float]) -> str:
     """Compute forward kinematics and return a formatted result."""
     q = [float(a) for a in angles]
     pose = robot.forward_kinematics(q)
     lines = [
         "Forward Kinematics Result:",
         f"  Input angles (rad): {[round(a, 6) for a in q]}",
-        f"  End-effector position:",
+        "  End-effector position:",
         f"    x = {pose.x:.6f}",
         f"    y = {pose.y:.6f}",
         f"    z = {pose.z:.6f}",
@@ -62,8 +61,8 @@ def _solve_ik(
     robot: RobotArm,
     target_x: float,
     target_y: float,
-    target_z: Optional[float] = None,
-    solver_name: Optional[str] = None,
+    target_z: float | None = None,
+    solver_name: str | None = None,
 ) -> str:
     """Solve inverse kinematics for a target position."""
     # Lazy import to avoid hard failure if the solvers layer is not yet
@@ -121,7 +120,7 @@ def _solve_ik(
     return "\n".join(lines)
 
 
-def _compute_jacobian(robot: RobotArm, angles: List[float]) -> str:
+def _compute_jacobian(robot: RobotArm, angles: list[float]) -> str:
     """Compute the Jacobian matrix and manipulability."""
     from roboarm.kinematics.jacobian import JacobianComputer
 
@@ -150,7 +149,7 @@ def _compare_solvers(
     robot: RobotArm,
     target_x: float,
     target_y: float,
-    target_z: Optional[float] = None,
+    target_z: float | None = None,
 ) -> str:
     """Compare all available IK solvers for a given target."""
     try:

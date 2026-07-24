@@ -8,9 +8,6 @@ import numpy as np
 import pytest
 
 from roboarm.core.exceptions import ValidationError
-from roboarm.core.robot import RobotArm
-from roboarm.robots.two_link_planar import create_two_link_planar
-from roboarm.robots.three_link_planar import create_three_link_planar
 
 
 class TestTwoLinkFK:

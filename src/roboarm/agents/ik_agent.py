@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
 
 from roboarm.agents.base_agent import AgentMessage, BaseAgent
-from roboarm.agents.tools import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -109,11 +107,11 @@ class IKAgent(BaseAgent):
         self,
         target_x: float,
         target_y: float,
-        target_z: Optional[float],
-        solver_name: Optional[str],
+        target_z: float | None,
+        solver_name: str | None,
     ) -> str:
         """Invoke the ``solve_ik`` tool and record the result."""
-        kwargs: Dict[str, object] = {
+        kwargs: dict[str, object] = {
             "target_x": target_x,
             "target_y": target_y,
         }
@@ -148,10 +146,10 @@ class IKAgent(BaseAgent):
         self,
         target_x: float,
         target_y: float,
-        target_z: Optional[float],
+        target_z: float | None,
     ) -> str:
         """Invoke the ``compare_solvers`` tool and record the result."""
-        kwargs: Dict[str, object] = {
+        kwargs: dict[str, object] = {
             "target_x": target_x,
             "target_y": target_y,
         }
@@ -204,7 +202,7 @@ class IKAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_coordinates(text: str) -> Optional[List[float]]:
+    def _extract_coordinates(text: str) -> list[float] | None:
         """Extract ``[x, y]`` or ``[x, y, z]`` from *text*.
 
         Tries several patterns in order of specificity:
@@ -256,7 +254,7 @@ class IKAgent(BaseAgent):
         return None
 
     @staticmethod
-    def _extract_solver_name(text: str) -> Optional[str]:
+    def _extract_solver_name(text: str) -> str | None:
         """Extract an explicit solver name from *text*.
 
         Looks for patterns like ``solver=damped_least_squares`` or
@@ -286,7 +284,7 @@ class IKAgent(BaseAgent):
 # Module-level helpers
 # ------------------------------------------------------------------
 
-def _extract_named_coords(text: str) -> Optional[List[float]]:
+def _extract_named_coords(text: str) -> list[float] | None:
     """Extract named ``x=``, ``y=``, ``z=`` coordinates from *text*.
 
     Returns:
@@ -313,14 +311,14 @@ def _extract_named_coords(text: str) -> Optional[List[float]]:
     return None
 
 
-def _parse_number_list(raw: str) -> Optional[List[float]]:
+def _parse_number_list(raw: str) -> list[float] | None:
     """Parse a string of comma / space separated numbers.
 
     Returns:
         List of floats, or ``None`` if parsing fails.
     """
     parts = re.split(r"[,\s]+", raw.strip())
-    values: List[float] = []
+    values: list[float] = []
     for part in parts:
         part = part.strip()
         if not part:

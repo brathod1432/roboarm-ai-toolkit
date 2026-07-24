@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import List, Optional
 
 from roboarm.agents.base_agent import AgentMessage, BaseAgent
-from roboarm.agents.tools import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +108,7 @@ class FKAgent(BaseAgent):
         return bool(tokens & _FK_KEYWORDS)
 
     @staticmethod
-    def _extract_angles(text: str) -> Optional[List[float]]:
+    def _extract_angles(text: str) -> list[float] | None:
         """Extract a list of numeric angles from *text*.
 
         Tries several patterns in order of specificity:
@@ -157,14 +155,14 @@ class FKAgent(BaseAgent):
         return None
 
 
-def _parse_number_list(raw: str) -> Optional[List[float]]:
+def _parse_number_list(raw: str) -> list[float] | None:
     """Parse a string of comma / space separated numbers.
 
     Returns:
         List of floats, or ``None`` if parsing fails.
     """
     parts = re.split(r"[,\s]+", raw.strip())
-    values: List[float] = []
+    values: list[float] = []
     for part in parts:
         part = part.strip()
         if not part:

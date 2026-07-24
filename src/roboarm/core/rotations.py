@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Tuple
 
 import numpy as np
 
@@ -76,7 +75,7 @@ def euler_to_rotation(roll: float, pitch: float, yaw: float) -> np.ndarray:
     return rotz(yaw) @ roty(pitch) @ rotx(roll)
 
 
-def rotation_to_euler(R: np.ndarray) -> Tuple[float, float, float]:
+def rotation_to_euler(R: np.ndarray) -> tuple[float, float, float]:
     """Extract ZYX Euler angles from a 3x3 rotation matrix.
 
     Args:
@@ -119,7 +118,7 @@ def axis_angle_to_rotation(axis: np.ndarray, angle: float) -> np.ndarray:
     return np.eye(3) + math.sin(angle) * K + (1.0 - math.cos(angle)) * (K @ K)
 
 
-def rotation_to_axis_angle(R: np.ndarray) -> Tuple[np.ndarray, float]:
+def rotation_to_axis_angle(R: np.ndarray) -> tuple[np.ndarray, float]:
     """Extract axis-angle from a 3x3 rotation matrix.
 
     Args:

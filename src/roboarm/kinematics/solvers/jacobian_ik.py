@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -41,7 +41,7 @@ class JacobianPseudoinverseSolver(IKSolverBase):
         self,
         robot: RobotArm,
         *,
-        config: Optional[IKConfig] = None,
+        config: IKConfig | None = None,
         max_iterations: int = 500,
         tolerance: float = 1e-6,
         step_size: float = 1.0,
@@ -57,7 +57,7 @@ class JacobianPseudoinverseSolver(IKSolverBase):
     def solve(
         self,
         target: EndEffectorPose,
-        q0: Optional[Sequence[float]] = None,
+        q0: Sequence[float] | None = None,
     ) -> IKSolution:
         """Solve IK iteratively using the Jacobian pseudo-inverse.
 
@@ -71,7 +71,7 @@ class JacobianPseudoinverseSolver(IKSolverBase):
         t_start = time.perf_counter()
         n_dof = self._robot.n_dof
         is_planar = self._jac.is_planar
-        messages: List[str] = []
+        messages: list[str] = []
 
         q = np.zeros(n_dof, dtype=np.float64)
         if q0 is not None:

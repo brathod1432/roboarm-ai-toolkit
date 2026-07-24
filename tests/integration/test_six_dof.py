@@ -7,16 +7,12 @@ built from Modified DH (Craig convention) parameters.
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 import pytest
 
 from roboarm.core.transform import is_valid_transform
-from roboarm.core.types import EndEffectorPose
 from roboarm.kinematics.jacobian import JacobianComputer
 from roboarm.robots.six_dof_mdh import create_six_dof_mdh
-
 
 # ======================================================================
 # 6-DOF robot structural properties

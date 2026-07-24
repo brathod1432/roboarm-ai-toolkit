@@ -10,8 +10,8 @@ from __future__ import annotations
 import time
 
 import numpy as np
-import pytest
 
+import roboarm.kinematics.solvers  # noqa: F401  -- triggers auto-registration
 from roboarm.agents.coordinator import RoboticsCoordinator
 from roboarm.core.types import EndEffectorPose
 from roboarm.kinematics.jacobian import JacobianComputer
@@ -19,9 +19,6 @@ from roboarm.kinematics.solvers.registry import IKSolverRegistry
 from roboarm.robots.six_dof_mdh import create_six_dof_mdh
 from roboarm.robots.three_link_planar import create_three_link_planar
 from roboarm.robots.two_link_planar import create_two_link_planar
-
-import roboarm.kinematics.solvers  # noqa: F401  -- triggers auto-registration
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -8,7 +8,7 @@ Monte-Carlo forward kinematics.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Sequence, Tuple
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -118,7 +118,7 @@ class WorkspaceAnalyzer:
 
     def workspace_bounds(
         self, n_samples: int = 2000
-    ) -> Dict[str, Tuple[float, float]]:
+    ) -> dict[str, tuple[float, float]]:
         """Compute approximate axis-aligned bounding box of the workspace.
 
         Args:
@@ -135,7 +135,7 @@ class WorkspaceAnalyzer:
         """
         points = self.sample_workspace(n_samples)
 
-        bounds: Dict[str, Tuple[float, float]] = {
+        bounds: dict[str, tuple[float, float]] = {
             "x": (float(np.min(points[:, 0])), float(np.max(points[:, 0]))),
             "y": (float(np.min(points[:, 1])), float(np.max(points[:, 1]))),
             "z": (float(np.min(points[:, 2])), float(np.max(points[:, 2]))),

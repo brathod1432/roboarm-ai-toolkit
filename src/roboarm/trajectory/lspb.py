@@ -8,7 +8,7 @@ acceleration (parabolic), constant velocity (linear), and deceleration
 from __future__ import annotations
 
 import logging
-from typing import Optional, Sequence, Tuple
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -19,9 +19,9 @@ def lspb(
     q0: float,
     qf: float,
     t_total: float,
-    v_max: Optional[float] = None,
+    v_max: float | None = None,
     n_steps: int = 100,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """LSPB trajectory for a single joint.
 
     Generates a trapezoidal velocity profile with parabolic blends at
@@ -109,7 +109,7 @@ def multi_joint_lspb(
     q_start: Sequence[float],
     q_end: Sequence[float],
     t_total: float,
-    v_max: Optional[Sequence[float]] = None,
+    v_max: Sequence[float] | None = None,
     n_steps: int = 100,
 ) -> np.ndarray:
     """LSPB trajectory for multiple joints simultaneously.

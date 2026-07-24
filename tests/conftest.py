@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import pytest
-import numpy as np
 
-from roboarm.robots.two_link_planar import create_two_link_planar
 from roboarm.robots.three_link_planar import create_three_link_planar
+from roboarm.robots.two_link_planar import create_two_link_planar
 
 
 @pytest.fixture

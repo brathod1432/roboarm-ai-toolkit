@@ -7,7 +7,7 @@ parameters, plus helpers for composition and inversion.
 from __future__ import annotations
 
 import logging
-from typing import List, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 

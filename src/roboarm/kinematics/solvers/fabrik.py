@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import math
 import time
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -56,7 +56,7 @@ class FABRIKSolver(IKSolverBase):
         self,
         robot: RobotArm,
         *,
-        config: Optional[IKConfig] = None,
+        config: IKConfig | None = None,
         max_iterations: int = 500,
         tolerance: float = 1e-6,
         **kwargs: object,
@@ -70,7 +70,7 @@ class FABRIKSolver(IKSolverBase):
     def solve(
         self,
         target: EndEffectorPose,
-        q0: Optional[Sequence[float]] = None,
+        q0: Sequence[float] | None = None,
     ) -> IKSolution:
         """Run FABRIK iterations to solve inverse kinematics.
 
@@ -83,7 +83,7 @@ class FABRIKSolver(IKSolverBase):
         """
         t_start = time.perf_counter()
         n_dof = self._robot.n_dof
-        messages: List[str] = []
+        messages: list[str] = []
         dim = 2 if self._planar else 3
 
         # Initialise joint angles

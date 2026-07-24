@@ -7,7 +7,7 @@ in 2-D and for visualising the joint-space configuration.
 from __future__ import annotations
 
 import logging
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import matplotlib
 import matplotlib.axes
@@ -52,9 +52,9 @@ class ArmVisualizer:
     def plot_2d(
         self,
         q: Sequence[float],
-        ax: Optional[matplotlib.axes.Axes] = None,
+        ax: matplotlib.axes.Axes | None = None,
         show_workspace: bool = False,
-        title: Optional[str] = None,
+        title: str | None = None,
     ) -> matplotlib.axes.Axes:
         """Plot a 2-D view of the robot in configuration *q*.
 
@@ -122,7 +122,7 @@ class ArmVisualizer:
     def plot_configuration_space(
         self,
         q: Sequence[float],
-        ax: Optional[matplotlib.axes.Axes] = None,
+        ax: matplotlib.axes.Axes | None = None,
     ) -> matplotlib.axes.Axes:
         """Plot the joint-space configuration as a bar chart.
 

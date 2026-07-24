@@ -7,7 +7,7 @@ callers can use a functional interface without coupling to the model class.
 from __future__ import annotations
 
 import logging
-from typing import Sequence
+from collections.abc import Sequence
 
 from roboarm.core.robot import RobotArm
 from roboarm.core.types import EndEffectorPose

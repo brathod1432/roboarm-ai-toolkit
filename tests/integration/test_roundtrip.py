@@ -11,19 +11,16 @@ from __future__ import annotations
 
 import itertools
 import math
-from typing import List
 
 import numpy as np
 import pytest
 
+import roboarm.kinematics.solvers  # noqa: F401 – triggers auto-registration
 from roboarm.core.transform import is_valid_transform
 from roboarm.core.types import EndEffectorPose
-from roboarm.kinematics.jacobian import JacobianComputer
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
 from roboarm.robots.three_link_planar import create_three_link_planar
 from roboarm.robots.two_link_planar import create_two_link_planar
-
-import roboarm.kinematics.solvers  # noqa: F401 – triggers auto-registration
 
 
 def _make_target(x: float, y: float, z: float = 0.0) -> EndEffectorPose:
@@ -46,7 +43,7 @@ def _make_target(x: float, y: float, z: float = 0.0) -> EndEffectorPose:
 class TestTwoLinkRoundtripGrid:
     """Systematic FK -> IK -> FK roundtrip on a grid of 2-link configs."""
 
-    _Q_VALS: List[float] = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    _Q_VALS: list[float] = [-2.0, -1.0, 0.0, 1.0, 2.0]
 
     def _run_grid_roundtrip(
         self,
@@ -357,7 +354,7 @@ class TestPositionAccuracyBenchmark:
         robot = create_two_link_planar(link1=0.5, link2=0.5)
         solver = IKSolverRegistry.create("damped_least_squares", robot)
 
-        errors: List[float] = []
+        errors: list[float] = []
         rng = np.random.default_rng(seed=123)
         for _ in range(50):
             q = rng.uniform(-2.5, 2.5, size=2)
@@ -388,7 +385,7 @@ class TestPositionAccuracyBenchmark:
         solver = IKSolverRegistry.create("damped_least_squares", robot)
         target = _make_target(1.0, 0.5)
 
-        positions: List[np.ndarray] = []
+        positions: list[np.ndarray] = []
         for _ in range(20):
             result = solver.solve(target)
             if result.success:
@@ -440,7 +437,7 @@ class TestPositionAccuracyBenchmark:
         robot = create_two_link_planar(link1=1.0, link2=0.7)
         solver = IKSolverRegistry.create("damped_least_squares", robot)
 
-        errors: List[float] = []
+        errors: list[float] = []
         rng = np.random.default_rng(seed=200)
         for _ in range(100):
             q = rng.uniform(-2.0, 2.0, size=2)

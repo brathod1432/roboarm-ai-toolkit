@@ -9,11 +9,11 @@ from __future__ import annotations
 import logging
 import math
 import time
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
-from roboarm.core.exceptions import ConfigurationError, KinematicsError
+from roboarm.core.exceptions import ConfigurationError
 from roboarm.core.robot import RobotArm
 from roboarm.core.types import EndEffectorPose, IKSolution, JointSolution
 from roboarm.kinematics.inverse import IKSolverBase
@@ -64,7 +64,7 @@ class Analytical2LinkSolver(IKSolverBase):
     def solve(
         self,
         target: EndEffectorPose,
-        q0: Optional[Sequence[float]] = None,
+        q0: Sequence[float] | None = None,
     ) -> IKSolution:
         """Compute closed-form IK for the 2-link planar arm.
 
@@ -88,7 +88,7 @@ class Analytical2LinkSolver(IKSolverBase):
         reach_max = l1 + l2
         reach_min = abs(l1 - l2)
 
-        messages: List[str] = []
+        messages: list[str] = []
 
         # Check reachability
         dist = math.sqrt(dist_sq)
@@ -114,7 +114,7 @@ class Analytical2LinkSolver(IKSolverBase):
 
         sin_q2_pos = math.sqrt(1.0 - cos_q2 * cos_q2)
 
-        solutions: List[JointSolution] = []
+        solutions: list[JointSolution] = []
 
         for sign, label in [(1.0, "elbow-up"), (-1.0, "elbow-down")]:
             sin_q2 = sign * sin_q2_pos

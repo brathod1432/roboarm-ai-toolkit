@@ -8,8 +8,9 @@ registering, discovering, and executing those tools.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class ToolDefinition:
 
     name: str
     description: str
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
     function: Callable[..., Any] = field(repr=False, default=lambda **kw: None)
 
 
@@ -51,7 +52,7 @@ class ToolRegistry:
     """
 
     def __init__(self) -> None:
-        self._tools: Dict[str, ToolDefinition] = {}
+        self._tools: dict[str, ToolDefinition] = {}
 
     def register(self, tool: ToolDefinition) -> None:
         """Register a tool definition.
@@ -69,7 +70,7 @@ class ToolRegistry:
         self._tools[tool.name] = tool
         logger.debug("Registered tool %r", tool.name)
 
-    def get(self, name: str) -> Optional[ToolDefinition]:
+    def get(self, name: str) -> ToolDefinition | None:
         """Look up a tool by name.
 
         Args:
@@ -107,7 +108,7 @@ class ToolRegistry:
             logger.exception("Tool %r raised an exception", name)
             raise
 
-    def list_tools(self) -> List[str]:
+    def list_tools(self) -> list[str]:
         """Return the names of all registered tools.
 
         Returns:
@@ -115,7 +116,7 @@ class ToolRegistry:
         """
         return sorted(self._tools.keys())
 
-    def get_schemas(self) -> List[Dict[str, Any]]:
+    def get_schemas(self) -> list[dict[str, Any]]:
         """Return OpenAI-compatible function schemas for all tools.
 
         Each schema follows the structure expected by the OpenAI
@@ -125,7 +126,7 @@ class ToolRegistry:
         Returns:
             List of schema dictionaries, one per registered tool.
         """
-        schemas: List[Dict[str, Any]] = []
+        schemas: list[dict[str, Any]] = []
         for name in sorted(self._tools):
             tool = self._tools[name]
             schemas.append({

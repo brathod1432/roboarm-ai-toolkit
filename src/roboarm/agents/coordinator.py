@@ -10,9 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import List, Optional
 
-from roboarm.agents.base_agent import AgentMessage
 from roboarm.agents.fk_agent import FKAgent
 from roboarm.agents.ik_agent import IKAgent
 from roboarm.agents.robotics_tools import build_robotics_tools
@@ -163,7 +161,7 @@ class RoboticsCoordinator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_angles(text: str) -> Optional[List[float]]:
+    def _extract_angles(text: str) -> list[float] | None:
         """Extract a list of floats from *text*.
 
         Tries bracket notation, parenthesis notation, "angles" keyword,
@@ -221,10 +219,10 @@ class RoboticsCoordinator:
 # Module-level helpers
 # ------------------------------------------------------------------
 
-def _parse_number_list(raw: str) -> Optional[List[float]]:
+def _parse_number_list(raw: str) -> list[float] | None:
     """Parse a string of comma / space separated numbers."""
     parts = re.split(r"[,\s]+", raw.strip())
-    values: List[float] = []
+    values: list[float] = []
     for part in parts:
         part = part.strip()
         if not part:

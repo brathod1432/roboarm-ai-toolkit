@@ -12,15 +12,7 @@ import math
 import numpy as np
 import pytest
 
-from roboarm.core.transform import (
-    chain_transforms,
-    dh_transform,
-    inverse_transform,
-    is_valid_transform,
-    mdh_transform,
-    extract_position,
-    extract_rotation,
-)
+import roboarm.kinematics.solvers  # noqa: F401 — triggers auto-registration
 from roboarm.core.rotations import (
     axis_angle_to_rotation,
     euler_to_rotation,
@@ -30,12 +22,19 @@ from roboarm.core.rotations import (
     rotation_to_euler,
     rotation_to_quaternion,
 )
+from roboarm.core.transform import (
+    chain_transforms,
+    dh_transform,
+    extract_position,
+    extract_rotation,
+    inverse_transform,
+    is_valid_transform,
+    mdh_transform,
+)
 from roboarm.core.types import EndEffectorPose, IKSolution
 from roboarm.kinematics.jacobian import JacobianComputer
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
 from roboarm.robots.two_link_planar import create_two_link_planar
-from roboarm.robots.three_link_planar import create_three_link_planar
-import roboarm.kinematics.solvers  # noqa: F401 — triggers auto-registration
 
 
 def _make_target(x: float, y: float, z: float = 0.0) -> EndEffectorPose:

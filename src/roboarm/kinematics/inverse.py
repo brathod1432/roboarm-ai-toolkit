@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence
 
 from roboarm.core.robot import RobotArm
 from roboarm.core.types import EndEffectorPose, IKSolution
@@ -40,7 +40,7 @@ class IKSolverBase(ABC):
     def solve(
         self,
         target: EndEffectorPose,
-        q0: Optional[Sequence[float]] = None,
+        q0: Sequence[float] | None = None,
     ) -> IKSolution:
         """Solve the inverse kinematics problem.
 

@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 import pytest
 
-from roboarm.core.types import EndEffectorPose, IKSolution
-from roboarm.robots.two_link_planar import create_two_link_planar
-from roboarm.kinematics.solvers.registry import IKSolverRegistry
-
 # Importing the solvers package triggers auto-registration of all solvers.
 import roboarm.kinematics.solvers  # noqa: F401
+from roboarm.core.types import EndEffectorPose
+from roboarm.kinematics.solvers.registry import IKSolverRegistry
 
 
 def _make_target(x: float, y: float, z: float = 0.0) -> EndEffectorPose:

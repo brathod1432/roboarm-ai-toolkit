@@ -12,6 +12,7 @@ import math
 import numpy as np
 import pytest
 
+import roboarm.kinematics.solvers  # noqa: F401 — triggers auto-registration
 from roboarm.core.exceptions import (
     ConfigurationError,
     RobotArmError,
@@ -29,7 +30,6 @@ from roboarm.core.transform import (
 from roboarm.core.types import EndEffectorPose, IKSolution
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
 from roboarm.robots.two_link_planar import create_two_link_planar
-import roboarm.kinematics.solvers  # noqa: F401 — triggers auto-registration
 
 
 def _make_target(x: float, y: float, z: float = 0.0) -> EndEffectorPose:

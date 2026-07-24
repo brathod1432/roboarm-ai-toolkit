@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Default configurations
 # ---------------------------------------------------------------------------
 
-DEFAULT_IK_CONFIG: Dict[str, Any] = {
+DEFAULT_IK_CONFIG: dict[str, Any] = {
     "max_iterations": 500,
     "tolerance": 1e-6,
     "damping": 0.5,
@@ -24,14 +24,14 @@ DEFAULT_IK_CONFIG: Dict[str, Any] = {
 }
 """Default parameters for iterative IK solvers."""
 
-DEFAULT_TRAJECTORY_CONFIG: Dict[str, Any] = {
+DEFAULT_TRAJECTORY_CONFIG: dict[str, Any] = {
     "n_steps": 100,
     "t_total": 2.0,
     "interpolation": "cubic",
 }
 """Default parameters for trajectory generation."""
 
-DEFAULT_VISUALIZATION_CONFIG: Dict[str, Any] = {
+DEFAULT_VISUALIZATION_CONFIG: dict[str, Any] = {
     "figure_size": (8, 8),
     "link_color": "steelblue",
     "joint_color": "navy",
@@ -47,9 +47,9 @@ DEFAULT_VISUALIZATION_CONFIG: Dict[str, Any] = {
 
 
 def get_config(
-    overrides: Optional[Dict[str, Any]] = None,
-    base: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    overrides: dict[str, Any] | None = None,
+    base: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Merge user overrides with a base configuration.
 
     The base defaults to :data:`DEFAULT_IK_CONFIG` if not provided.

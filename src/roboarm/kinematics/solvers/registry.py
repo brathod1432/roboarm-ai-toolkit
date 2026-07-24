@@ -8,7 +8,7 @@ can be created by name at runtime.
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, List, Type
+from collections.abc import Callable
 
 from roboarm.core.exceptions import ConfigurationError
 from roboarm.core.robot import RobotArm
@@ -32,10 +32,10 @@ class IKSolverRegistry:
         solver = IKSolverRegistry.create("my_solver", robot)
     """
 
-    _registry: Dict[str, Type[IKSolverBase]] = {}
+    _registry: dict[str, type[IKSolverBase]] = {}
 
     @classmethod
-    def register(cls, name: str) -> Callable[[Type[IKSolverBase]], Type[IKSolverBase]]:
+    def register(cls, name: str) -> Callable[[type[IKSolverBase]], type[IKSolverBase]]:
         """Decorator that registers a solver class under *name*.
 
         Args:
@@ -48,7 +48,7 @@ class IKSolverRegistry:
             ConfigurationError: If *name* is already registered.
         """
 
-        def decorator(solver_cls: Type[IKSolverBase]) -> Type[IKSolverBase]:
+        def decorator(solver_cls: type[IKSolverBase]) -> type[IKSolverBase]:
             if name in cls._registry:
                 raise ConfigurationError(
                     f"IK solver '{name}' is already registered "
@@ -86,6 +86,6 @@ class IKSolverRegistry:
         return solver_cls(robot, **kwargs)
 
     @classmethod
-    def available(cls) -> List[str]:
+    def available(cls) -> list[str]:
         """Return a sorted list of all registered solver names."""
         return sorted(cls._registry)

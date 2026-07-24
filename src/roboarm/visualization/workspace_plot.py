@@ -7,7 +7,6 @@ positions of a :class:`RobotArm`.
 from __future__ import annotations
 
 import logging
-from typing import Optional, Sequence
 
 import matplotlib
 import matplotlib.axes
@@ -15,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from roboarm.core.robot import RobotArm
-from roboarm.core.transform import extract_position
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +39,7 @@ class WorkspaceVisualizer:
     def plot_reachable_workspace(
         self,
         n_samples: int = 1000,
-        ax: Optional[matplotlib.axes.Axes] = None,
+        ax: matplotlib.axes.Axes | None = None,
     ) -> matplotlib.axes.Axes:
         """Sample random joint configurations and plot FK positions.
 

@@ -10,16 +10,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+import roboarm.kinematics.solvers  # noqa: F401  -- triggers auto-registration
 from roboarm.agents.coordinator import RoboticsCoordinator
 from roboarm.agents.robotics_tools import build_robotics_tools
-from roboarm.agents.tools import ToolRegistry
 from roboarm.core.exceptions import ConfigurationError, RobotArmError
 from roboarm.core.types import EndEffectorPose
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
 from roboarm.robots.two_link_planar import create_two_link_planar
-
-import roboarm.kinematics.solvers  # noqa: F401  -- triggers auto-registration
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def validate_joint_angles(
     q: Sequence[float],
     n_dof: int,
-    joints: Optional[List[JointConfig]] = None,
+    joints: list[JointConfig] | None = None,
 ) -> np.ndarray:
     """Validate and convert joint angles to a numpy array.
 

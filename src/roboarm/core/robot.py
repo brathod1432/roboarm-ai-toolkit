@@ -7,7 +7,7 @@ chain and computes forward kinematics by chaining DH transforms.
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -19,7 +19,6 @@ from roboarm.core.transform import (
     transform_from_dh_params,
 )
 from roboarm.core.types import (
-    DHParams,
     EndEffectorPose,
     JointConfig,
     JointLimits,
@@ -42,7 +41,7 @@ class RobotArm:
 
     def __init__(
         self,
-        joints: List[JointConfig],
+        joints: list[JointConfig],
         name: str = "Robot",
     ) -> None:
         """Initialise the robot arm.
@@ -57,7 +56,7 @@ class RobotArm:
         self.name = name
 
     @property
-    def joints(self) -> List[JointConfig]:
+    def joints(self) -> list[JointConfig]:
         """All joints in the chain."""
         return list(self._joints)
 
@@ -72,12 +71,12 @@ class RobotArm:
         return sum(1 for j in self._joints if j.is_variable)
 
     @property
-    def joint_names(self) -> List[str]:
+    def joint_names(self) -> list[str]:
         """Names of all variable joints."""
         return [j.name or f"J{i}" for i, j in enumerate(self._joints) if j.is_variable]
 
     @property
-    def joint_limits(self) -> List[Optional[JointLimits]]:
+    def joint_limits(self) -> list[JointLimits | None]:
         """Limits for each variable joint."""
         return [j.limits for j in self._joints if j.is_variable]
 
@@ -107,7 +106,7 @@ class RobotArm:
             transform=T,
         )
 
-    def joint_transforms(self, q: Sequence[float]) -> List[np.ndarray]:
+    def joint_transforms(self, q: Sequence[float]) -> list[np.ndarray]:
         """Compute the cumulative transform up to each joint frame.
 
         The returned list has ``n_joints + 1`` entries: ``[T_base, T_01,
@@ -145,7 +144,7 @@ class RobotArm:
         cumulative = self.joint_transforms(q)
         return np.array([extract_position(T) for T in cumulative])
 
-    def _compute_link_transforms(self, q: np.ndarray) -> List[np.ndarray]:
+    def _compute_link_transforms(self, q: np.ndarray) -> list[np.ndarray]:
         """Build per-link transforms inserting variable joint angles.
 
         Args:
@@ -154,7 +153,7 @@ class RobotArm:
         Returns:
             List of 4x4 per-link transforms.
         """
-        transforms: List[np.ndarray] = []
+        transforms: list[np.ndarray] = []
         q_idx = 0
         for jc in self._joints:
             if jc.is_variable:
