@@ -4,7 +4,6 @@
 > agents for forward kinematics, inverse kinematics, trajectory planning,
 > and manipulability analysis.
 
-**Author:** Brijesh Rathod
 **Python:** 3.10+
 **License:** MIT
 
@@ -53,7 +52,7 @@ serial-link robot arm engineering:
 
 ```bash
 # Clone
-git clone https://github.com/brathod1432/roboarm-ai-toolkit.git
+git clone https://github.com/yourusername/roboarm-ai-toolkit.git
 cd roboarm-ai-toolkit
 
 # Install in development mode
