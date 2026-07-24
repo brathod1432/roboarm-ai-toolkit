@@ -320,13 +320,34 @@ python examples/05_ai_agent_demo.py          # Natural language demo
 
 ## Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| numpy | >= 1.24 | Matrix operations |
-| matplotlib | >= 3.7 | Visualization |
-| scipy | >= 1.10 | Optimization (optional) |
+### Pinned Requirements (Recommended)
 
-Dev tools: pytest, pytest-cov, ruff, mypy
+| File | Purpose |
+|------|---------|
+| [`requirements_python312.txt`](requirements_python312.txt) | Core runtime only (numpy + matplotlib, pinned versions) |
+| [`requirements_dev_python312.txt`](requirements_dev_python312.txt) | Core + dev tools (pytest, ruff, mypy, pre-commit) |
+
+```bash
+# Install core dependencies only
+pip install -r requirements_python312.txt
+
+# Install everything (core + dev tools)
+pip install -r requirements_dev_python312.txt
+
+# Or use pyproject.toml (flexible version ranges)
+pip install -e ".[dev]"
+```
+
+### Package Summary
+
+| Package | Pinned Version | Min Version | Purpose |
+|---------|---------------|-------------|---------|
+| numpy | 2.5.1 | >= 1.24 | Matrix operations, linear algebra |
+| matplotlib | 3.11.1 | >= 3.7 | Visualization, arm plots |
+| pytest | 9.1.1 | >= 7.0 | Test framework (dev) |
+| pytest-cov | 7.1.0 | >= 4.0 | Coverage reporting (dev) |
+| ruff | 0.16.0 | >= 0.1 | Linter and formatter (dev) |
+| mypy | 2.3.0 | >= 1.0 | Static type checker (dev) |
 
 ---
 

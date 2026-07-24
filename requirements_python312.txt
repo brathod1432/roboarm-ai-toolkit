@@ -1,0 +1,29 @@
+# =============================================================================
+# roboarm-ai-toolkit — Core Runtime Dependencies
+# Python 3.12 | Pinned versions for reproducibility
+# =============================================================================
+#
+# Install: pip install -r requirements_python312.txt
+#
+# These are the exact versions tested and verified with the full test suite
+# (234 tests passing). For flexible version ranges, use: pip install -e "."
+# which reads from pyproject.toml.
+#
+# Platform: Windows 10/11 (also compatible with Linux and macOS)
+# Last verified: 2025-07-24
+# =============================================================================
+
+# --- Core (required for all functionality) ---
+numpy==2.5.1                  # Matrix operations, linear algebra
+matplotlib==3.11.1            # 2D visualization, arm plots, workspace plots
+
+# --- Matplotlib sub-dependencies (auto-installed, pinned for completeness) ---
+contourpy==1.3.3              # Contour calculations for matplotlib
+cycler==0.12.1                # Composable style cycles for matplotlib
+fonttools==4.63.0             # Font handling for matplotlib
+kiwisolver==1.5.0             # Constraint solver for matplotlib layout
+packaging==26.2               # Version parsing (matplotlib dependency)
+pillow==12.3.0                # Image handling (matplotlib backend, GIF export)
+pyparsing==3.3.2              # Parsing for matplotlib
+python-dateutil==2.9.0.post0  # Date utilities (matplotlib dependency)
+six==1.17.0                   # Python 2/3 compatibility (dateutil dependency)
