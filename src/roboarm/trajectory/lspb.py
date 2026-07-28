@@ -111,18 +111,29 @@ def multi_joint_lspb(
     t_total: float,
     v_max: Sequence[float] | None = None,
     n_steps: int = 100,
+    joint_limits: Sequence[object | None] | None = None,
 ) -> np.ndarray:
     """LSPB trajectory for multiple joints simultaneously.
 
     Each joint follows its own trapezoidal velocity profile over the
-    same total duration.
+    same total duration.  When *joint_limits* are provided the cruise
+    velocity for each joint is capped at the joint's ``velocity_max``
+    (if set), ensuring the trajectory respects the mechanical speed
+    limits defined on the robot.
 
     Args:
         q_start: Starting joint angles (radians).
         q_end: Goal joint angles (radians).
         t_total: Total trajectory duration (seconds).
         v_max: Per-joint maximum velocities.  ``None`` for automatic.
+            When a joint also has a ``velocity_max`` limit set in
+            *joint_limits*, the stricter (smaller magnitude) of the two
+            is used.
         n_steps: Number of time samples.
+        joint_limits: Optional sequence of :class:`JointLimits` (or
+            ``None``) per joint, as returned by
+            ``RobotArm.joint_limits``.  When provided, each joint's
+            ``velocity_max`` is used to cap the cruise velocity.
 
     Returns:
         ``(n_steps, n_dof)`` array of joint positions.
@@ -130,6 +141,12 @@ def multi_joint_lspb(
     Example::
 
         traj = multi_joint_lspb([0, 0], [1.5, -0.5], t_total=2.0)
+
+        # With velocity limits from a robot
+        traj = multi_joint_lspb(
+            q_start, q_end, t_total=2.0,
+            joint_limits=robot.joint_limits,
+        )
     """
     q0_arr = np.asarray(q_start, dtype=np.float64).ravel()
     qf_arr = np.asarray(q_end, dtype=np.float64).ravel()
@@ -138,7 +155,25 @@ def multi_joint_lspb(
     trajectory = np.empty((n_steps, n_dof), dtype=np.float64)
 
     for j in range(n_dof):
-        vm = None if v_max is None else float(v_max[j])
+        # Start with caller-supplied v_max (or None for auto)
+        vm: float | None = None if v_max is None else float(v_max[j])  # type: ignore[index]
+
+        # Apply joint velocity limit if available
+        if joint_limits is not None and j < len(joint_limits):  # type: ignore[arg-type]
+            lim = joint_limits[j]  # type: ignore[index]
+            if lim is not None and hasattr(lim, "velocity_max") and lim.velocity_max is not None:
+                hw_limit = float(lim.velocity_max)
+                delta_q = float(qf_arr[j]) - float(q0_arr[j])
+                # Preserve sign direction; cap magnitude
+                if delta_q >= 0:
+                    vm = hw_limit if vm is None else min(vm, hw_limit)
+                else:
+                    vm = -hw_limit if vm is None else max(vm, -hw_limit)
+                logger.debug(
+                    "Joint %d: velocity capped to %.4f rad/s by JointLimits",
+                    j, hw_limit,
+                )
+
         pos, _vel, _t = lspb(
             q0=float(q0_arr[j]),
             qf=float(qf_arr[j]),

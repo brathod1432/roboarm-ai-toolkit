@@ -73,10 +73,10 @@ import numpy as np
 from roboarm.core.types import EndEffectorPose
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
 
-# Import solver modules to register them
-import roboarm.kinematics.solvers.damped_least_squares
+# Import the solvers package to auto-register all 5 solvers at once
+import roboarm.kinematics.solvers  # noqa: F401
 
-# Create the solver
+# Create the solver (or any other: analytical_2link, ccd, fabrik, jacobian_pseudoinverse)
 solver = IKSolverRegistry.create("damped_least_squares", robot)
 
 # Define the target position

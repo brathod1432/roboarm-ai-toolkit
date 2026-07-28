@@ -37,7 +37,7 @@ class JacobianComputer:
 
     def __init__(self, robot: RobotArm) -> None:
         self._robot = robot
-        self._is_planar = self._detect_planar()
+        self._is_planar = robot.is_planar
         logger.debug(
             "JacobianComputer created for %s (planar=%s)",
             robot.name,
@@ -168,23 +168,91 @@ class JacobianComputer:
         mu = self.manipulability(q)
         singular = mu < threshold
         if singular:
-            logger.info(
+            logger.warning(
                 "Configuration q=%s is singular (mu=%.6e < %.6e)",
                 list(q), mu, threshold,
             )
+        else:
+            logger.debug(
+                "Configuration q=%s is non-singular (mu=%.6e)",
+                list(q), mu,
+            )
         return singular
+
+    def joint_velocities(
+        self,
+        q: Sequence[float],
+        ee_velocity: Sequence[float],
+        damping: float = 0.0,
+    ) -> np.ndarray:
+        """Compute joint velocities from a desired end-effector velocity.
+
+        Implements resolved-rate motion control: given a desired Cartesian
+        velocity ``dx`` at the end-effector, compute the joint velocities
+        ``dq = J^+ @ dx`` (or a damped variant for singularity robustness).
+
+        Args:
+            q: Current joint angles in radians.
+            ee_velocity: Desired end-effector velocity.  For planar robots:
+                ``[vx, vy]`` in m/s.  For spatial robots: ``[vx, vy, vz]``
+                in m/s (position part only).
+            damping: Damping factor λ for the Damped Least Squares inverse.
+                ``0.0`` (default) uses the plain Moore-Penrose pseudo-inverse.
+                Use ``0.01``–``0.1`` near singularities.
+
+        Returns:
+            ``(n_dof,)`` joint velocity array in rad/s.
+
+        Example::
+
+            jc = JacobianComputer(robot)
+            dq = jc.joint_velocities([0.5, -0.3], [0.05, 0.0])
+        """
+        J = self.compute(q)
+        dx = np.asarray(ee_velocity, dtype=np.float64).ravel()
+        task_dim = J.shape[0]
+        if dx.size != task_dim:
+            raise ValueError(
+                f"ee_velocity must have {task_dim} elements for this robot, "
+                f"got {dx.size}"
+            )
+        if damping == 0.0:
+            return np.linalg.pinv(J) @ dx
+        # Damped least squares: J^T (J J^T + λ²I)^{-1} dx
+        JJT = J @ J.T + (damping ** 2) * np.eye(task_dim, dtype=np.float64)
+        return J.T @ np.linalg.solve(JJT, dx)
+
+    def manipulability_gradient(self, q: Sequence[float]) -> np.ndarray:
+        """Compute the gradient of the manipulability measure w.r.t. joint angles.
+
+        The gradient ``∂μ/∂q`` (where μ = sqrt(det(JJ^T))) points in the
+        joint-space direction that maximally increases manipulability.
+        Useful for null-space redundancy resolution: a redundant robot can
+        add a component along this gradient to drift toward more dexterous
+        configurations while tracking a Cartesian target.
+
+        Args:
+            q: Joint angles in radians.
+
+        Returns:
+            ``(n_dof,)`` gradient vector.  The sign convention is such that
+            moving joints in the direction of the gradient *increases*
+            manipulability.
+        """
+        delta = 1e-5
+        q_arr = np.asarray(q, dtype=np.float64).ravel()
+        n_dof = self._robot.n_dof
+        grad = np.zeros(n_dof, dtype=np.float64)
+        for i in range(n_dof):
+            q_plus = q_arr.copy()
+            q_plus[i] += delta
+            q_minus = q_arr.copy()
+            q_minus[i] -= delta
+            mu_plus = self.manipulability(q_plus)
+            mu_minus = self.manipulability(q_minus)
+            grad[i] = (mu_plus - mu_minus) / (2.0 * delta)
+        return grad
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
-
-    def _detect_planar(self) -> bool:
-        """Detect whether the robot is planar.
-
-        A robot is considered planar when every joint has ``alpha == 0``
-        and ``d == 0`` in its DH parameters.
-        """
-        for jc in self._robot.joints:
-            if jc.dh_params.alpha != 0.0 or jc.dh_params.d != 0.0:
-                return False
-        return True

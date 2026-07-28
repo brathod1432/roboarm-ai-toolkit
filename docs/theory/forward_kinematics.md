@@ -41,8 +41,8 @@ from roboarm.robots.two_link_planar import create_two_link_planar
 robot = create_two_link_planar(link1=1.0, link2=1.0)
 pose = robot.forward_kinematics([0.5, -0.3])
 
-print(f"x = {pose.x:.4f}")  # x = 1.4553
-print(f"y = {pose.y:.4f}")  # y = 0.2739
+print(f"x = {pose.x:.4f}")  # x = 1.8576
+print(f"y = {pose.y:.4f}")  # y = 0.6781
 ```
 
 ## 6-DOF Modified DH Example

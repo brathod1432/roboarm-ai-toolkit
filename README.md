@@ -239,15 +239,15 @@ solver = IKSolverRegistry.create("damped_least_squares", robot)
 
 | Category | Tests | What It Validates |
 |----------|------:|-------------------|
-| Core types & transforms | 42 | Dataclasses, DH/MDH matrices, rotations |
+| Core types & transforms | 51 | Dataclasses, DH/MDH matrices, rotations |
 | Forward kinematics | 16 | Known-answer FK at specific configurations |
-| Inverse kinematics | 10 | FK<->IK roundtrip, solver registry |
+| Inverse kinematics | 11 | FK<->IK roundtrip, solver registry |
 | **Accuracy & precision** | **28** | **200-config sweeps, sub-mm error verification** |
 | **Negative / error handling** | **40** | **NaN, Inf, None, wrong types, invalid configs** |
 | **Security** | **24** | **Injection attacks, unsupported ops, access control** |
 | **Stress / performance** | **12** | **10K FK, 500 IK solves, 1K Jacobians** |
-| **Integration roundtrip** | **34** | **10 arm geometries, workspace quadrant coverage** |
-| **6-DOF MDH** | **18** | **Model properties, FK validity, Jacobian shape** |
+| **Integration roundtrip** | **33** | **10 arm geometries, workspace quadrant coverage** |
+| **6-DOF MDH** | **19** | **Model properties, FK validity, Jacobian shape** |
 
 ### Accuracy Benchmarks
 
@@ -284,6 +284,8 @@ pytest tests/integration/test_stress.py -v  # Performance benchmarks
 | [Forward Kinematics](docs/theory/forward_kinematics.md) | FK chain multiplication with examples |
 | [Inverse Kinematics](docs/theory/inverse_kinematics.md) | All 5 solver algorithms explained |
 | [Jacobian Matrix](docs/theory/jacobian.md) | Velocity kinematics and manipulability |
+| [Trajectory Planning](docs/theory/trajectory_planning.md) | Polynomial interpolation and LSPB profiles |
+| [Workspace Analysis](docs/theory/workspace_analysis.md) | Monte Carlo reachability and bounding box |
 
 ### Tutorials (How to Use It)
 

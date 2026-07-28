@@ -17,6 +17,8 @@ from roboarm.core.types import EndEffectorPose, IKSolution, JointSolution
 from roboarm.kinematics.inverse import IKConfig, IKSolverBase
 from roboarm.kinematics.jacobian import JacobianComputer
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
+from roboarm.utils.angle_utils import wrap_angles
+from roboarm.utils.log_event import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +84,18 @@ class JacobianPseudoinverseSolver(IKSolverBase):
         error_norm = float("inf")
         iteration = 0
 
+        best_error = float("inf")
+        best_q = q.copy()
+
         for iteration in range(1, self._max_iter + 1):
             fk = self._robot.forward_kinematics(q)
             current_pos = fk.position[:2] if is_planar else fk.position[:3]
             error = target_pos - current_pos
             error_norm = float(np.linalg.norm(error))
+
+            if error_norm < best_error:
+                best_error = error_norm
+                best_q = q.copy()
 
             if error_norm < self._tol:
                 logger.debug(
@@ -98,6 +107,12 @@ class JacobianPseudoinverseSolver(IKSolverBase):
             J_pinv = np.linalg.pinv(J)
             delta_q = J_pinv @ error
             q = q + self._step * delta_q
+            q = wrap_angles(q)
+            # Clamp to joint limits if defined
+            limits = self._robot.joint_limits
+            for j, lim in enumerate(limits):
+                if lim is not None:
+                    q[j] = float(np.clip(q[j], lim.lower, lim.upper))
 
         elapsed = (time.perf_counter() - t_start) * 1000.0
         success = error_norm < self._tol
@@ -107,15 +122,27 @@ class JacobianPseudoinverseSolver(IKSolverBase):
                 f"Did not converge after {iteration} iterations "
                 f"(error={error_norm:.2e})"
             )
-            logger.warning(messages[-1])
+            log_event(logger, logging.WARNING, "ik_solve",
+                      solver=self.name,
+                      success=False,
+                      iterations=iteration,
+                      error=round(error_norm, 8),
+                      duration_ms=round(elapsed, 3))
         else:
             messages.append(
                 f"Converged in {iteration} iterations (error={error_norm:.2e})"
             )
+            log_event(logger, logging.DEBUG, "ik_solve",
+                      solver=self.name,
+                      success=True,
+                      iterations=iteration,
+                      error=round(error_norm, 8),
+                      duration_ms=round(elapsed, 3))
 
         return IKSolution(
             success=success,
             primary=JointSolution(values=q) if success else None,
+            best_attempt=JointSolution(values=best_q),
             iterations=iteration,
             residual_error=error_norm,
             computation_time_ms=elapsed,

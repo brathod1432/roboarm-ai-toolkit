@@ -11,13 +11,15 @@ from __future__ import annotations
 import logging
 import re
 
+from roboarm.agents._request_context import get_logger, request_context
 from roboarm.agents.fk_agent import FKAgent
 from roboarm.agents.ik_agent import IKAgent
 from roboarm.agents.robotics_tools import build_robotics_tools
 from roboarm.agents.tools import ToolRegistry
 from roboarm.core.robot import RobotArm
+from roboarm.utils.log_event import log_event
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Keyword sets for routing (order matters -- see process())
 _DESCRIBE_KEYWORDS = {"describe", "info", "about", "details"}
@@ -78,7 +80,7 @@ class RoboticsCoordinator:
     # Public API
     # ------------------------------------------------------------------
 
-    def process(self, user_input: str) -> str:
+    def process(self, user_input: str, request_id: str | None = None) -> str:
         """Route *user_input* to the appropriate agent or tool.
 
         Routing rules (evaluated in priority order):
@@ -97,32 +99,42 @@ class RoboticsCoordinator:
         Returns:
             Human-readable response string.
         """
+        with request_context(request_id) as rid:
+            return self._dispatch(user_input, rid)
+
+    def _dispatch(self, user_input: str, _rid: str) -> str:
+        """Internal routing once a request context is active."""
         logger.info("Coordinator received: %s", user_input)
         lower = user_input.lower()
         tokens = set(re.findall(r"[a-z]+", lower))
 
         # --- Route 1: Robot description --------------------------------
         if tokens & _DESCRIBE_KEYWORDS:
+            log_event(logger, logging.DEBUG, "route", intent="describe")
             return self._handle_describe()
 
         # --- Route 2: Solver comparison --------------------------------
         if tokens & _COMPARE_KEYWORDS:
+            log_event(logger, logging.DEBUG, "route", intent="compare")
             return self._ik_agent.process(user_input)
 
         # --- Route 3: Jacobian analysis (before FK!) -------------------
         if tokens & _JACOBIAN_KEYWORDS:
+            log_event(logger, logging.DEBUG, "route", intent="jacobian")
             return self._handle_jacobian(user_input)
 
         # --- Route 4: Forward kinematics -------------------------------
         if tokens & _FK_KEYWORDS:
+            log_event(logger, logging.DEBUG, "route", intent="fk")
             return self._fk_agent.process(user_input)
 
         # --- Route 5: Inverse kinematics ------------------------------
         if tokens & _IK_KEYWORDS or re.search(r"[xy]\s*=", lower):
+            log_event(logger, logging.DEBUG, "route", intent="ik")
             return self._ik_agent.process(user_input)
 
         # --- Default: help message -------------------------------------
-        logger.info("No intent matched; returning help text")
+        log_event(logger, logging.INFO, "route", intent="unmatched")
         return _HELP_TEXT
 
     # ------------------------------------------------------------------

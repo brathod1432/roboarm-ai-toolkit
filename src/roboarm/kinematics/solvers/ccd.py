@@ -18,16 +18,9 @@ from roboarm.core.robot import RobotArm
 from roboarm.core.types import EndEffectorPose, IKSolution, JointSolution
 from roboarm.kinematics.inverse import IKConfig, IKSolverBase
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
+from roboarm.utils.log_event import log_event
 
 logger = logging.getLogger(__name__)
-
-
-def _is_planar(robot: RobotArm) -> bool:
-    """Return ``True`` if every joint has ``alpha == 0`` and ``d == 0``."""
-    return all(
-        jc.dh_params.alpha == 0.0 and jc.dh_params.d == 0.0
-        for jc in robot.joints
-    )
 
 
 @IKSolverRegistry.register("ccd")
@@ -62,7 +55,7 @@ class CCDSolver(IKSolverBase):
         cfg = config or IKConfig()
         self._max_iter = max_iterations if config is None else cfg.max_iterations
         self._tol = tolerance if config is None else cfg.tolerance
-        self._planar = _is_planar(robot)
+        self._planar = robot.is_planar
 
         # Build map from variable-joint index to overall joint index
         self._var_indices: list[int] = [
@@ -95,6 +88,8 @@ class CCDSolver(IKSolverBase):
 
         error_norm = float("inf")
         iteration = 0
+        best_error = float("inf")
+        best_q = q.copy()
 
         for iteration in range(1, self._max_iter + 1):
             # Sweep joints from tip to base
@@ -145,6 +140,10 @@ class CCDSolver(IKSolverBase):
             current_pos = fk.position[:2] if self._planar else fk.position[:3]
             error_norm = float(np.linalg.norm(target_pos - current_pos))
 
+            if error_norm < best_error:
+                best_error = error_norm
+                best_q = q.copy()
+
             if error_norm < self._tol:
                 logger.debug(
                     "CCD converged at iteration %d (error=%.2e)",
@@ -160,16 +159,28 @@ class CCDSolver(IKSolverBase):
                 f"CCD did not converge after {iteration} iterations "
                 f"(error={error_norm:.2e})"
             )
-            logger.warning(messages[-1])
+            log_event(logger, logging.WARNING, "ik_solve",
+                      solver=self.name,
+                      success=False,
+                      iterations=iteration,
+                      error=round(error_norm, 8),
+                      duration_ms=round(elapsed, 3))
         else:
             messages.append(
                 f"CCD converged in {iteration} iterations "
                 f"(error={error_norm:.2e})"
             )
+            log_event(logger, logging.DEBUG, "ik_solve",
+                      solver=self.name,
+                      success=True,
+                      iterations=iteration,
+                      error=round(error_norm, 8),
+                      duration_ms=round(elapsed, 3))
 
         return IKSolution(
             success=success,
             primary=JointSolution(values=q) if success else None,
+            best_attempt=JointSolution(values=best_q),
             iterations=iteration,
             residual_error=error_norm,
             computation_time_ms=elapsed,

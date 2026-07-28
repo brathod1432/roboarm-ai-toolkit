@@ -55,9 +55,9 @@ Output:
 Forward Kinematics Result:
   Input angles (rad): [0.5, -0.3]
   End-effector position:
-    x = 1.4553
-    y = 0.2739
-    z = 0.0000
+    x = 1.857649
+    y = 0.678095
+    z = 0.000000
 ```
 
 ### Inverse kinematics

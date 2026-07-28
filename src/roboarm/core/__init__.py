@@ -7,6 +7,7 @@ Re-exports key classes for convenient access::
 
 from __future__ import annotations
 
+from roboarm.core.builder import RobotBuilder
 from roboarm.core.exceptions import (
     ConfigurationError,
     ConvergenceError,
@@ -28,6 +29,7 @@ from roboarm.core.types import (
 
 __all__ = [
     "RobotArm",
+    "RobotBuilder",
     "DHParams",
     "EndEffectorPose",
     "IKSolution",

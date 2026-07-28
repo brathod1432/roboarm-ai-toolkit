@@ -8,7 +8,6 @@ All tools operate on a given :class:`RobotArm` instance.
 from __future__ import annotations
 
 import logging
-import time
 
 import numpy as np
 
@@ -77,13 +76,13 @@ def _solve_ik(
 
     z = target_z if target_z is not None else 0.0
     position = np.array([target_x, target_y, z], dtype=np.float64)
+    transform = np.eye(4, dtype=np.float64)
+    transform[:3, 3] = position
     target_pose = EndEffectorPose(
         position=position,
         rotation=np.eye(3, dtype=np.float64),
-        transform=np.eye(4, dtype=np.float64),
+        transform=transform,
     )
-    # Place position into the transform for solvers that read it
-    target_pose.transform[:3, 3] = position
 
     chosen = solver_name or "damped_least_squares"
 
@@ -110,6 +109,20 @@ def _solve_ik(
         lines.append(
             f"  Solution (rad): {[round(float(v), 6) for v in angles]}"
         )
+        # FK verification — confirm the solution actually reaches the target
+        try:
+            fk_check = robot.forward_kinematics(angles)
+            verified_error = float(np.linalg.norm(
+                position[:2 if robot.is_planar else 3]
+                - fk_check.position[:2 if robot.is_planar else 3]
+            ))
+            lines.append(f"  Verified FK error: {verified_error:.6e}")
+        except Exception:
+            pass  # verification is best-effort; never block the response
+    elif not result.success and result.best_attempt is not None:
+        lines.append(
+            f"  Best attempt (rad): {[round(float(v), 6) for v in result.best_attempt.values]}"
+        )
     lines.extend([
         f"  Iterations: {result.iterations}",
         f"  Residual error: {result.residual_error:.6e}",
@@ -120,12 +133,27 @@ def _solve_ik(
     return "\n".join(lines)
 
 
-def _compute_jacobian(robot: RobotArm, angles: list[float]) -> str:
-    """Compute the Jacobian matrix and manipulability."""
+def _compute_jacobian(
+    robot: RobotArm,
+    angles: list[float],
+    _jac_cache: dict[int, object] | None = None,
+) -> str:
+    """Compute the Jacobian matrix and manipulability.
+
+    *_jac_cache* is injected by :func:`build_robotics_tools` so the
+    :class:`JacobianComputer` is reused across calls instead of being
+    re-instantiated (and re-running planarity detection) every time.
+    """
     from roboarm.kinematics.jacobian import JacobianComputer
 
     q = [float(a) for a in angles]
-    jc = JacobianComputer(robot)
+    # Use cached JacobianComputer if supplied, otherwise create a new one
+    if _jac_cache is not None and id(robot) in _jac_cache:
+        jc = _jac_cache[id(robot)]
+    else:
+        jc = JacobianComputer(robot)
+        if _jac_cache is not None:
+            _jac_cache[id(robot)] = jc
     jacobian = jc.compute(q)
     mu = jc.manipulability(q)
     singular = jc.is_singular(q)
@@ -162,12 +190,13 @@ def _compare_solvers(
 
     z = target_z if target_z is not None else 0.0
     position = np.array([target_x, target_y, z], dtype=np.float64)
+    transform = np.eye(4, dtype=np.float64)
+    transform[:3, 3] = position
     target_pose = EndEffectorPose(
         position=position,
         rotation=np.eye(3, dtype=np.float64),
-        transform=np.eye(4, dtype=np.float64),
+        transform=transform,
     )
-    target_pose.transform[:3, 3] = position
 
     registry = IKSolverRegistry()
     available = registry.available()
@@ -188,14 +217,14 @@ def _compare_solvers(
     for solver_name in available:
         try:
             solver = registry.create(solver_name, robot)
-            t0 = time.perf_counter()
             result = solver.solve(target_pose)
-            elapsed = (time.perf_counter() - t0) * 1000.0
+            # Use the solver's self-reported time (excludes instantiation overhead
+            # and is consistent with what individual solve_ik calls report).
             lines.append(
                 f"  {solver_name:<28} "
                 f"{'Yes' if result.success else 'No':<10} "
                 f"{result.residual_error:<14.6e} "
-                f"{elapsed:<12.2f} "
+                f"{result.computation_time_ms:<12.2f} "
                 f"{result.iterations:<12}"
             )
         except Exception as exc:
@@ -219,12 +248,18 @@ def build_robotics_tools(robot: RobotArm) -> ToolRegistry:
     """Create a :class:`ToolRegistry` with FK, IK, Jacobian, describe,
     and compare tools pre-registered.
 
+    A shared :class:`JacobianComputer` cache is created once and
+    injected into the ``compute_jacobian`` tool so the planner's
+    planarity detection only runs on first use.
+
     Args:
         robot: The robot arm model the tools will operate on.
 
     Returns:
         Fully populated :class:`ToolRegistry`.
     """
+    # Shared cache: {id(robot): JacobianComputer} — avoids re-instantiation
+    _jac_cache: dict[int, object] = {}
     registry = ToolRegistry()
 
     registry.register(ToolDefinition(
@@ -299,7 +334,7 @@ def build_robotics_tools(robot: RobotArm) -> ToolRegistry:
                 "description": "Joint angles in radians.",
             },
         },
-        function=lambda angles: _compute_jacobian(robot, angles),
+        function=lambda angles: _compute_jacobian(robot, angles, _jac_cache),
     ))
 
     registry.register(ToolDefinition(

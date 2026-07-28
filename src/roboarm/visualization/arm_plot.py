@@ -168,16 +168,101 @@ class ArmVisualizer:
         logger.debug("Plotted configuration space for q=%s", list(np.round(q, 3)))
         return ax
 
+    def animate_trajectory(
+        self,
+        trajectory: np.ndarray,
+        interval_ms: int = 50,
+        save_path: str | None = None,
+        title: str | None = None,
+    ) -> object:
+        """Animate the arm moving through a joint-space trajectory.
+
+        Args:
+            trajectory: ``(n_steps, n_dof)`` joint angle array.
+            interval_ms: Milliseconds between frames.
+            save_path: Optional file path to save the animation.  The
+                format is inferred from the extension (e.g. ``.gif``
+                requires Pillow; ``.mp4`` requires ffmpeg).
+            title: Optional figure title.
+
+        Returns:
+            The ``matplotlib.animation.FuncAnimation`` object.
+
+        Example::
+
+            anim = viz.animate_trajectory(traj, interval_ms=50)
+            anim.save("motion.gif", writer="pillow")
+        """
+        import matplotlib.animation as animation
+
+        traj = np.asarray(trajectory, dtype=np.float64)
+        n_steps = traj.shape[0]
+
+        fig, ax = plt.subplots(1, 1, figsize=(7, 7))
+        is_planar = self._is_planar()
+
+        # Compute workspace extent for fixed axes limits
+        all_positions = np.array([
+            self._robot.joint_positions(traj[i]) for i in range(n_steps)
+        ])
+        if is_planar:
+            xs = all_positions[:, :, 0].ravel()
+            ys = all_positions[:, :, 1].ravel()
+        else:
+            xs = all_positions[:, :, 0].ravel()
+            ys = all_positions[:, :, 2].ravel()
+        pad = max(float(np.ptp(xs)), float(np.ptp(ys))) * 0.15 + 0.05
+        ax.set_xlim(float(np.min(xs)) - pad, float(np.max(xs)) + pad)
+        ax.set_ylim(float(np.min(ys)) - pad, float(np.max(ys)) + pad)
+        ax.set_aspect("equal")
+        ax.grid(True, alpha=0.3)
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y" if is_planar else "Z")
+        ax.set_title(title or f"{self._robot.name} — Trajectory Animation")
+
+        (line,) = ax.plot([], [], "o-", color="steelblue", linewidth=3, markersize=4)
+        (ee_dot,) = ax.plot([], [], "*", color="crimson", markersize=14)
+        step_text = ax.text(
+            0.02, 0.97, "", transform=ax.transAxes, fontsize=9, va="top"
+        )
+
+        def init() -> tuple:
+            line.set_data([], [])
+            ee_dot.set_data([], [])
+            step_text.set_text("")
+            return line, ee_dot, step_text
+
+        def update(frame: int) -> tuple:
+            positions = self._robot.joint_positions(traj[frame])
+            xs_f = positions[:, 0]
+            ys_f = positions[:, 1] if is_planar else positions[:, 2]
+            line.set_data(xs_f, ys_f)
+            ee_dot.set_data([xs_f[-1]], [ys_f[-1]])
+            step_text.set_text(f"step {frame + 1}/{n_steps}")
+            return line, ee_dot, step_text
+
+        anim = animation.FuncAnimation(
+            fig,
+            update,
+            frames=n_steps,
+            init_func=init,
+            interval=interval_ms,
+            blit=True,
+        )
+
+        if save_path is not None:
+            anim.save(save_path)
+            logger.info("Animation saved to %s", save_path)
+
+        return anim
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
     def _is_planar(self) -> bool:
-        """Heuristic: all alpha values are zero -> planar robot."""
-        for jc in self._robot.joints:
-            if abs(jc.dh_params.alpha) > 1e-9:
-                return False
-        return True
+        """Delegate to the canonical ``RobotArm.is_planar`` property."""
+        return self._robot.is_planar
 
     def _draw_workspace_boundary(
         self,

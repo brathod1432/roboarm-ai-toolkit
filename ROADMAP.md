@@ -43,10 +43,13 @@
 - [x] `trajectory/` -- Linear, cubic, quintic interpolation + LSPB
 - [x] `workspace/analysis.py` -- Monte Carlo reachability
 - [x] Comprehensive documentation (theory + tutorials)
+  - [x] `docs/theory/trajectory_planning.md` -- polynomial interpolation and LSPB theory
+  - [x] `docs/theory/workspace_analysis.md` -- Monte Carlo workspace analysis guide
 - [x] 234 tests (accuracy, negative, security, stress, integration)
 - [x] CI/CD pipeline (GitHub Actions)
 - [x] PyPI-ready packaging (`pyproject.toml`)
 - [x] CONTRIBUTING.md + USAGE_TERMS.md
+- [x] `AGENTS.md` -- project build/test command reference
 
 ## Future Enhancements
 - [ ] Neural IK solver (PyTorch)

@@ -93,15 +93,14 @@ The `IKSolverRegistry` pattern allows you to select solvers by name without impo
 from roboarm.robots.two_link_planar import create_two_link_planar
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
 
-# Import solver modules to trigger registration
-import roboarm.kinematics.solvers.damped_least_squares
-import roboarm.kinematics.solvers.ccd
+# Import the solvers package — its __init__.py auto-registers all 5 solvers
+import roboarm.kinematics.solvers  # noqa: F401
 
 robot = create_two_link_planar()
 
 # List available solvers
 print(IKSolverRegistry.available())
-# ['ccd', 'damped_least_squares']
+# ['analytical_2link', 'ccd', 'damped_least_squares', 'fabrik', 'jacobian_pseudoinverse']
 
 # Create and use a solver
 solver = IKSolverRegistry.create("damped_least_squares", robot)

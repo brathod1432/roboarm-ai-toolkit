@@ -25,16 +25,9 @@ from roboarm.core.robot import RobotArm
 from roboarm.core.types import EndEffectorPose, IKSolution, JointSolution
 from roboarm.kinematics.inverse import IKConfig, IKSolverBase
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
+from roboarm.utils.log_event import log_event
 
 logger = logging.getLogger(__name__)
-
-
-def _is_planar(robot: RobotArm) -> bool:
-    """Return ``True`` if every joint has ``alpha == 0`` and ``d == 0``."""
-    return all(
-        jc.dh_params.alpha == 0.0 and jc.dh_params.d == 0.0
-        for jc in robot.joints
-    )
 
 
 @IKSolverRegistry.register("fabrik")
@@ -65,7 +58,7 @@ class FABRIKSolver(IKSolverBase):
         cfg = config or IKConfig()
         self._max_iter = max_iterations if config is None else cfg.max_iterations
         self._tol = tolerance if config is None else cfg.tolerance
-        self._planar = _is_planar(robot)
+        self._planar = robot.is_planar
 
     def solve(
         self,
@@ -113,7 +106,10 @@ class FABRIKSolver(IKSolverBase):
                 f"Target is unreachable (distance={target_dist:.4f}, "
                 f"reach={total_reach:.4f})"
             )
-            logger.warning(messages[-1])
+            log_event(logger, logging.WARNING, "ik_unreachable",
+                      solver=self.name,
+                      target_dist=round(target_dist, 4),
+                      reach=round(total_reach, 4))
             return IKSolution(
                 success=False,
                 iterations=0,
@@ -124,6 +120,8 @@ class FABRIKSolver(IKSolverBase):
             )
 
         base = points[0].copy()
+        best_error = float("inf")
+        best_points = points.copy()
         error_norm = float("inf")
         iteration = 0
 
@@ -155,6 +153,9 @@ class FABRIKSolver(IKSolverBase):
 
             # Check convergence
             error_norm = float(np.linalg.norm(points[-1] - target_pos))
+            if error_norm < best_error:
+                best_error = error_norm
+                best_points = points.copy()
             if error_norm < self._tol:
                 logger.debug(
                     "FABRIK converged at iteration %d (error=%.2e)",
@@ -164,6 +165,7 @@ class FABRIKSolver(IKSolverBase):
 
         # --- Recover joint angles from positions ---
         q = self._positions_to_angles(points, n_dof)
+        best_q = self._positions_to_angles(best_points, n_dof)
 
         # Verify with FK
         fk = self._robot.forward_kinematics(q)
@@ -178,16 +180,28 @@ class FABRIKSolver(IKSolverBase):
                 f"FABRIK did not converge after {iteration} iterations "
                 f"(error={error_norm:.2e})"
             )
-            logger.warning(messages[-1])
+            log_event(logger, logging.WARNING, "ik_solve",
+                      solver=self.name,
+                      success=False,
+                      iterations=iteration,
+                      error=round(error_norm, 8),
+                      duration_ms=round(elapsed, 3))
         else:
             messages.append(
                 f"FABRIK converged in {iteration} iterations "
                 f"(error={error_norm:.2e})"
             )
+            log_event(logger, logging.DEBUG, "ik_solve",
+                      solver=self.name,
+                      success=True,
+                      iterations=iteration,
+                      error=round(error_norm, 8),
+                      duration_ms=round(elapsed, 3))
 
         return IKSolution(
             success=success,
             primary=JointSolution(values=q) if success else None,
+            best_attempt=JointSolution(values=best_q),
             iterations=iteration,
             residual_error=error_norm,
             computation_time_ms=elapsed,

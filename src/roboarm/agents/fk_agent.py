@@ -63,8 +63,12 @@ class FKAgent(BaseAgent):
             self._memory.add(AgentMessage(role="assistant", content=msg))
             return msg
 
-        # Extract angles
+        # Extract angles — first from the current query, then from memory
         angles = self._extract_angles(user_input)
+        if angles is None:
+            angles = self._recall_last_angles()
+            if angles is not None:
+                logger.debug("FKAgent: using angles from conversation memory")
         if angles is None:
             msg = (
                 "I could not find joint angles in your query. Please "
@@ -100,6 +104,19 @@ class FKAgent(BaseAgent):
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _recall_last_angles(self) -> list[float] | None:
+        """Search recent assistant messages for the last set of angles used.
+
+        Enables queries like "repeat with the same angles" to work without
+        the user repeating the values.
+        """
+        for msg in reversed(self._memory.get_history()):
+            if msg.role == "assistant" and msg.tool_args:
+                angles = msg.tool_args.get("angles")
+                if isinstance(angles, list) and angles:
+                    return angles
+        return None
 
     @staticmethod
     def _has_fk_intent(text: str) -> bool:

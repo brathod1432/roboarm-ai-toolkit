@@ -77,8 +77,12 @@ class IKAgent(BaseAgent):
         # Determine if this is a comparison request
         is_compare = self._has_compare_intent(lower)
 
-        # Extract coordinates
+        # Extract coordinates — first from the current query, then from memory
         coords = self._extract_coordinates(user_input)
+        if coords is None:
+            coords = self._recall_last_coords()
+            if coords is not None:
+                logger.debug("IKAgent: using coordinates from conversation memory")
         if coords is None:
             msg = (
                 "I could not find target coordinates in your query. "
@@ -177,6 +181,24 @@ class IKAgent(BaseAgent):
             ),
         )
         return response
+
+    def _recall_last_coords(self) -> list[float] | None:
+        """Return the last target coordinates used in this conversation.
+
+        Enables queries like "try the same target with a different solver"
+        to resolve without the user repeating the coordinates.
+        """
+        for msg in reversed(self._memory.get_history()):
+            if msg.role == "assistant" and msg.tool_args:
+                x = msg.tool_args.get("target_x")
+                y = msg.tool_args.get("target_y")
+                if x is not None and y is not None:
+                    coords = [float(x), float(y)]
+                    z = msg.tool_args.get("target_z")
+                    if z is not None:
+                        coords.append(float(z))
+                    return coords
+        return None
 
     # ------------------------------------------------------------------
     # Intent detection

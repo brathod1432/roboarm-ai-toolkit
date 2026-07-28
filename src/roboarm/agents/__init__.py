@@ -15,12 +15,13 @@ Quick start::
 
 from __future__ import annotations
 
+from roboarm.agents._request_context import current_request_id, request_context
 from roboarm.agents.base_agent import AgentMemory, AgentMessage, BaseAgent
 from roboarm.agents.coordinator import RoboticsCoordinator
 from roboarm.agents.fk_agent import FKAgent
 from roboarm.agents.ik_agent import IKAgent
 from roboarm.agents.robotics_tools import build_robotics_tools
-from roboarm.agents.tools import ToolDefinition, ToolRegistry
+from roboarm.agents.tools import ToolDefinition, ToolMetrics, ToolRegistry
 
 __all__ = [
     "AgentMemory",
@@ -30,6 +31,9 @@ __all__ = [
     "IKAgent",
     "RoboticsCoordinator",
     "ToolDefinition",
+    "ToolMetrics",
     "ToolRegistry",
     "build_robotics_tools",
+    "current_request_id",
+    "request_context",
 ]

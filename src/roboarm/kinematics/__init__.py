@@ -10,6 +10,7 @@ Provides:
 
 from __future__ import annotations
 
+from roboarm.kinematics.batch import batch_fk, batch_ik
 from roboarm.kinematics.forward import compute_fk
 from roboarm.kinematics.inverse import IKConfig, IKSolverBase
 from roboarm.kinematics.jacobian import JacobianComputer
@@ -20,5 +21,7 @@ __all__ = [
     "IKSolverBase",
     "IKSolverRegistry",
     "JacobianComputer",
+    "batch_fk",
+    "batch_ik",
     "compute_fk",
 ]

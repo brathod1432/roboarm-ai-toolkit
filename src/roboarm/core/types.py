@@ -77,14 +77,22 @@ class EndEffectorPose:
     """End-effector position and orientation.
 
     Attributes:
-        position: 3-element array ``[x, y, z]``.
-        rotation: 3x3 rotation matrix.
-        transform: 4x4 homogeneous transformation matrix.
+        position: 3-element array ``[x, y, z]`` (read-only).
+        rotation: 3x3 rotation matrix (read-only).
+        transform: 4x4 homogeneous transformation matrix (read-only).
+
+    All numpy arrays are made read-only on construction to prevent
+    accidental mutation of FK results.
     """
 
     position: np.ndarray
     rotation: np.ndarray
     transform: np.ndarray
+
+    def __post_init__(self) -> None:
+        """Freeze all array fields after construction."""
+        for arr in (self.position, self.rotation, self.transform):
+            arr.flags.writeable = False
 
     @property
     def x(self) -> float:
@@ -121,6 +129,11 @@ class IKSolution:
         success: Whether the solver converged to a valid solution.
         primary: Best joint-angle solution, or ``None`` on failure.
         alternatives: Other valid solutions found by the solver.
+        best_attempt: Closest configuration reached when convergence
+            fails — always populated by iterative solvers regardless of
+            success.  ``None`` for analytical solvers and on immediate
+            failure (e.g. out-of-workspace).  Useful for debugging or
+            "close enough" strategies when ``success`` is ``False``.
         iterations: Number of iterations used.
         residual_error: Final position error norm.
         computation_time_ms: Wall-clock solve time in milliseconds.
@@ -131,6 +144,7 @@ class IKSolution:
     success: bool
     primary: JointSolution | None = None
     alternatives: list[JointSolution] = field(default_factory=list)
+    best_attempt: JointSolution | None = None
     iterations: int = 0
     residual_error: float = float("inf")
     computation_time_ms: float = 0.0
