@@ -18,6 +18,7 @@ from roboarm.core.robot import RobotArm
 from roboarm.core.types import EndEffectorPose, IKSolution, JointSolution
 from roboarm.kinematics.inverse import IKConfig, IKSolverBase
 from roboarm.kinematics.solvers.registry import IKSolverRegistry
+from roboarm.utils.angle_utils import wrap_angles
 from roboarm.utils.log_event import log_event
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,12 @@ class CCDSolver(IKSolverBase):
                     delta = math.atan2(math.sin(delta), math.cos(delta))
 
                 q[vi] += delta
+                # Wrap to [-pi, pi] and clamp to joint limits
+                q = wrap_angles(q)
+                limits = self._robot.joint_limits
+                for j_idx, lim in enumerate(limits):
+                    if lim is not None:
+                        q[j_idx] = float(np.clip(q[j_idx], lim.lower, lim.upper))
 
             # Evaluate error after full sweep
             fk = self._robot.forward_kinematics(q)

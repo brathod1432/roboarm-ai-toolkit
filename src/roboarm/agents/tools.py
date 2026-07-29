@@ -279,10 +279,8 @@ class ToolRegistry:
             log = registry.get_audit_log(last_n=10)
             failures = [e for e in log if e["status"] == "error"]
         """
-        entries = list(self._audit)
-        if last_n is not None:
-            entries = entries[-last_n:]
-        return entries
+        entries = self._audit[-last_n:] if last_n is not None else list(self._audit)
+        return [dict(e) for e in entries]
 
     def reset_metrics(self) -> None:
         """Reset all per-tool counters to zero.

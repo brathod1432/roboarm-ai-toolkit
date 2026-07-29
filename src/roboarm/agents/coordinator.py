@@ -17,7 +17,7 @@ from roboarm.agents.ik_agent import IKAgent
 from roboarm.agents.robotics_tools import build_robotics_tools
 from roboarm.agents.tools import ToolRegistry
 from roboarm.core.robot import RobotArm
-from roboarm.utils.log_event import log_event
+from roboarm.utils.log_event import log_event, sanitize_for_log
 
 logger = get_logger(__name__)
 
@@ -104,7 +104,7 @@ class RoboticsCoordinator:
 
     def _dispatch(self, user_input: str, _rid: str) -> str:
         """Internal routing once a request context is active."""
-        logger.info("Coordinator received: %s", user_input)
+        logger.info("Coordinator received: %s", sanitize_for_log(user_input))
         lower = user_input.lower()
         tokens = set(re.findall(r"[a-z]+", lower))
 

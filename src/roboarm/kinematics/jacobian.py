@@ -184,6 +184,7 @@ class JacobianComputer:
         q: Sequence[float],
         ee_velocity: Sequence[float],
         damping: float = 0.0,
+        max_joint_velocity: float | None = None,
     ) -> np.ndarray:
         """Compute joint velocities from a desired end-effector velocity.
 
@@ -199,6 +200,9 @@ class JacobianComputer:
             damping: Damping factor λ for the Damped Least Squares inverse.
                 ``0.0`` (default) uses the plain Moore-Penrose pseudo-inverse.
                 Use ``0.01``–``0.1`` near singularities.
+            max_joint_velocity: Optional upper bound (rad/s) applied to every
+                joint.  ``None`` means no saturation.  Set to the physical
+                motor velocity limit to prevent hardware damage.
 
         Returns:
             ``(n_dof,)`` joint velocity array in rad/s.
@@ -217,10 +221,24 @@ class JacobianComputer:
                 f"got {dx.size}"
             )
         if damping == 0.0:
-            return np.linalg.pinv(J) @ dx
-        # Damped least squares: J^T (J J^T + λ²I)^{-1} dx
-        JJT = J @ J.T + (damping ** 2) * np.eye(task_dim, dtype=np.float64)
-        return J.T @ np.linalg.solve(JJT, dx)
+            dq = np.linalg.pinv(J) @ dx
+        else:
+            # Damped least squares: J^T (J J^T + λ²I)^{-1} dx
+            JJT = J @ J.T + (damping ** 2) * np.eye(task_dim, dtype=np.float64)
+            dq = J.T @ np.linalg.solve(JJT, dx)
+
+        # Safety: reject NaN/Inf outputs — these would damage physical hardware
+        import math
+        if not all(math.isfinite(float(v)) for v in dq):
+            raise ValueError(
+                "joint_velocities() produced non-finite values (NaN or Inf). "
+                "The robot may be at or very near a kinematic singularity. "
+                "Use damping > 0 (e.g. damping=0.05) to regularise near singularities."
+            )
+        # Saturate to max_joint_velocity if provided
+        if max_joint_velocity is not None and max_joint_velocity > 0:
+            dq = np.clip(dq, -max_joint_velocity, max_joint_velocity)
+        return dq
 
     def manipulability_gradient(self, q: Sequence[float]) -> np.ndarray:
         """Compute the gradient of the manipulability measure w.r.t. joint angles.

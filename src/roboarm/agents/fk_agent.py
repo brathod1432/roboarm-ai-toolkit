@@ -11,6 +11,7 @@ import logging
 import re
 
 from roboarm.agents.base_agent import AgentMessage, BaseAgent
+from roboarm.utils.log_event import sanitize_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class FKAgent(BaseAgent):
             Human-readable result string, or an error / help message.
         """
         self._memory.add(AgentMessage(role="user", content=user_input))
-        logger.info("FKAgent received: %s", user_input)
+        logger.info("FKAgent received: %s", sanitize_for_log(user_input))
 
         lower = user_input.lower()
 

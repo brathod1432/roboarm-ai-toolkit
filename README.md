@@ -235,7 +235,7 @@ solver = IKSolverRegistry.create("damped_least_squares", robot)
 
 ## Test Results
 
-**234 tests, 100% passing, 5.64 seconds**
+**437+ tests, 100% passing**
 
 | Category | Tests | What It Validates |
 |----------|------:|-------------------|

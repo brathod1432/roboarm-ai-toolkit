@@ -42,6 +42,36 @@ from roboarm.core.types import (
 logger = logging.getLogger(__name__)
 
 
+# Maximum joints allowed in deserialized robots (DoS protection)
+_MAX_JOINTS: int = 32
+
+
+def _validate_dh_float(value: object, field: str) -> float:
+    """Convert to float and reject non-finite values (NaN/Inf injection guard).
+
+    Args:
+        value: Raw value from untrusted input (JSON dict, etc.).
+        field: Field name for the error message.
+
+    Returns:
+        Validated finite float.
+
+    Raises:
+        ValidationError: If the value is not finite or not a number.
+    """
+    import math
+    try:
+        f = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(f"DH param '{field}' must be a number, got {value!r}") from exc
+    if not math.isfinite(f):
+        raise ValidationError(
+            f"DH param '{field}' must be finite (got {f}). "
+            "NaN/Inf values are not permitted."
+        )
+    return f
+
+
 class RobotArm:
     """Serial-link robot arm built from a chain of DH-parameterised joints.
 
@@ -80,10 +110,18 @@ class RobotArm:
         """
         if not joints:
             raise ValidationError("Robot must have at least one joint")
+        if len(joints) > _MAX_JOINTS:
+            raise ValidationError(
+                f"Robot must have at most {_MAX_JOINTS} joints, got {len(joints)}"
+            )
         self._joints = list(joints)
         self.name = name
         # Named pose store: {pose_name: joint_angle_array}
         self._poses: dict[str, np.ndarray] = {}
+        # Solver cache: keyed by solver name, populated lazily on first use.
+        # Avoids re-instantiating the solver (registry lookup + JacobianComputer
+        # setup) on every call to solve_ik() — critical for real-time control loops.
+        self._solver_cache: dict[str, object] = {}
 
     # ------------------------------------------------------------------
     # Basic properties
@@ -151,6 +189,15 @@ class RobotArm:
 
         transforms = self._compute_link_transforms(q_arr)
         T = chain_transforms(transforms)
+        # Guard: NaN/Inf in output transform means DH parameters or joint
+        # angles contained non-finite values — surface this immediately
+        # rather than allowing silent NaN propagation downstream.
+        if not np.all(np.isfinite(T[:3, :])):
+            raise ValidationError(
+                "forward_kinematics() produced non-finite end-effector position. "
+                "This usually means DH parameters (a, d, alpha) contain NaN or Inf. "
+                "Check that all robot parameters are valid finite numbers."
+            )
         return EndEffectorPose(
             position=extract_position(T),
             rotation=extract_rotation(T),
@@ -237,6 +284,19 @@ class RobotArm:
         if pos_arr.size == 2:
             pos_arr = np.append(pos_arr, 0.0)
 
+        # Security: reject non-finite or astronomically large coordinates
+        import math
+        for i, coord in enumerate(pos_arr):
+            if not math.isfinite(coord):
+                raise ValidationError(
+                    f"Position coordinate [{i}] is not finite: {coord!r}"
+                )
+            if abs(coord) > 1e6:
+                raise ValidationError(
+                    f"Position coordinate [{i}] = {coord:.4g} exceeds the maximum "
+                    f"allowed magnitude of 1e6 m. Did you mix up units?"
+                )
+
         T = np.eye(4, dtype=np.float64)
         T[:3, 3] = pos_arr
         target = EndEffectorPose(
@@ -245,8 +305,11 @@ class RobotArm:
             transform=T,
         )
 
-        solver = IKSolverRegistry.create(solver_name, self)
-        return solver.solve(target, q0=q0)
+        # Use cached solver instance; create on first call for this name.
+        if solver_name not in self._solver_cache:
+            self._solver_cache[solver_name] = IKSolverRegistry.create(solver_name, self)
+        solver = self._solver_cache[solver_name]
+        return solver.solve(target, q0=q0)  # type: ignore[union-attr]
 
     def ik(
         self,
@@ -288,7 +351,7 @@ class RobotArm:
             q = robot.ik(x=1.0, y=0.5)
             q = robot.ik([1.2, 0.8])
         """
-        from roboarm.core.exceptions import KinematicsError
+        from roboarm.core.exceptions import IKFailedError
 
         if position is not None:
             pos = list(position)
@@ -301,10 +364,13 @@ class RobotArm:
 
         result = self.solve_ik(pos, solver_name=solver_name, q0=q0)
         if not result.success or result.primary is None:
-            raise KinematicsError(
+            raise IKFailedError(
                 f"IK solver {solver_name!r} failed to converge "
                 f"(residual={result.residual_error:.4e}). "
-                "Use solve_ik() to inspect the full result."
+                "Use solve_ik() to inspect the full result.",
+                residual_error=result.residual_error,
+                best_attempt=result.best_attempt,
+                solver_name=solver_name,
             )
         return result.primary.values
 
@@ -451,16 +517,31 @@ class RobotArm:
                 f"Missing required key in robot dict: {exc}"
             ) from exc
 
+        # --- Security: validate structure before processing ---
+        _MAX_JOINTS = 32
+        if not isinstance(joints_data, list):
+            raise ValidationError("'joints' must be a list")
+        if len(joints_data) > _MAX_JOINTS:
+            raise ValidationError(
+                f"Robot definition exceeds maximum of {_MAX_JOINTS} joints "
+                f"(got {len(joints_data)}). Possible DoS attempt."
+            )
+
         joints: list[JointConfig] = []
         for j in joints_data:
             dh_d = j["dh_params"]
             dh = DHParams(
-                alpha=float(dh_d["alpha"]),
-                a=float(dh_d["a"]),
-                d=float(dh_d["d"]),
-                theta=float(dh_d["theta"]),
+                alpha=_validate_dh_float(dh_d.get("alpha", 0.0), "alpha"),
+                a=_validate_dh_float(dh_d.get("a", 0.0), "a"),
+                d=_validate_dh_float(dh_d.get("d", 0.0), "d"),
+                theta=_validate_dh_float(dh_d.get("theta", 0.0), "theta"),
                 convention=str(dh_d.get("convention", "standard")),
             )
+            if dh.convention not in ("standard", "modified"):
+                raise ValidationError(
+                    f"Invalid DH convention {dh.convention!r}. "
+                    "Must be 'standard' or 'modified'."
+                )
             lim: JointLimits | None = None
             if j.get("limits") is not None:
                 ld = j["limits"]
@@ -503,7 +584,16 @@ class RobotArm:
 
             robot.save("my_arm.json")
         """
-        out = Path(path)
+        out = Path(path).resolve()
+        cwd = Path.cwd().resolve()
+        try:
+            out.relative_to(cwd)
+        except ValueError:
+            logger.warning(
+                "robot.save(): writing outside current working directory: %s "
+                "(cwd=%s). Verify this is intentional.",
+                out, cwd,
+            )
         out.write_text(
             json.dumps(self.to_dict(), indent=indent),
             encoding="utf-8",
@@ -524,7 +614,16 @@ class RobotArm:
 
             robot = RobotArm.load("my_arm.json")
         """
-        src = Path(path)
+        src = Path(path).resolve()
+        cwd = Path.cwd().resolve()
+        try:
+            src.relative_to(cwd)
+        except ValueError:
+            logger.warning(
+                "RobotArm.load(): reading from outside current working directory: %s "
+                "(cwd=%s). Verify this is intentional.",
+                src, cwd,
+            )
         data = json.loads(src.read_text(encoding="utf-8"))
         robot = cls.from_dict(data)
         logger.info("Robot %r loaded from %s", robot.name, src)
@@ -558,4 +657,288 @@ class RobotArm:
         return (
             f"RobotArm(name={self.name!r}, "
             f"n_joints={self.n_joints}, n_dof={self.n_dof})"
+        )
+
+    def __eq__(self, other: object) -> bool:
+        """Two robots are equal if they have the same serialized definition.
+
+        Named poses are also compared.
+
+        Args:
+            other: Object to compare with.
+
+        Returns:
+            ``True`` if *other* is a :class:`RobotArm` with identical
+            joints and poses.
+        """
+        if not isinstance(other, RobotArm):
+            return NotImplemented
+        return self.to_dict() == other.to_dict()
+
+    def __hash__(self) -> int:
+        """Hash based on the serialized joint chain (ignoring poses).
+
+        Poses are mutable and therefore excluded from the hash to keep
+        the ``hash(robot)`` consistent even after :meth:`save_pose` calls.
+        """
+        import hashlib
+        import json as _json
+        # Hash only joints and name, not poses (poses are mutable)
+        d = {"name": self.name, "joints": self.to_dict()["joints"]}
+        blob = _json.dumps(d, sort_keys=True).encode()
+        return int(hashlib.sha256(blob).hexdigest(), 16) % (2**61)
+
+    def copy(self) -> RobotArm:
+        """Return a deep copy of this robot arm including joints and poses.
+
+        The copy is fully independent — modifying the original's joints
+        or poses does not affect the copy and vice versa.
+
+        Returns:
+            A new :class:`RobotArm` with identical configuration.
+
+        Example::
+
+            robot_copy = robot.copy()
+            robot_copy.save_pose("variant", [0.5, 0.5])  # does not affect robot
+        """
+        new_robot = RobotArm.from_dict(self.to_dict())
+        logger.debug("Copied robot %r", self.name)
+        return new_robot
+
+    def _repr_html_(self) -> str:
+        """Rich HTML representation for Jupyter notebooks.
+
+        Returns an HTML table showing all joints with their DH parameters
+        and joint limits, making the robot model immediately readable in
+        a notebook cell output.
+        """
+        rows = []
+        var_idx = 0
+        for jc in self._joints:
+            dh = jc.dh_params
+            kind = "revolute" if jc.is_variable else "fixed"
+            lim_str = "—"
+            if jc.limits is not None:
+                lo = f"{jc.limits.lower:.3f}"
+                hi = f"{jc.limits.upper:.3f}"
+                lim_str = f"[{lo}, {hi}] rad"
+            rows.append(
+                f"<tr>"
+                f"<td>{jc.name or ('J' + str(var_idx + 1) if jc.is_variable else 'fixed')}</td>"
+                f"<td>{kind}</td>"
+                f"<td>{dh.alpha:.4f}</td>"
+                f"<td>{dh.a:.4f}</td>"
+                f"<td>{dh.d:.4f}</td>"
+                f"<td>{dh.convention}</td>"
+                f"<td>{lim_str}</td>"
+                f"</tr>"
+            )
+            if jc.is_variable:
+                var_idx += 1
+
+        header = (
+            "<th>Name</th><th>Type</th>"
+            "<th>alpha (rad)</th><th>a (m)</th><th>d (m)</th>"
+            "<th>Convention</th><th>Limits</th>"
+        )
+        table = (
+            f'<table border="1" style="border-collapse:collapse;font-family:monospace">'
+            f"<caption><b>{self.name}</b> | {self.n_dof} DOF | "
+            f"{self.n_joints} joints</caption>"
+            f"<thead><tr>{header}</tr></thead>"
+            f"<tbody>{''.join(rows)}</tbody>"
+            f"</table>"
+        )
+        return table
+
+    def gravity_torques(
+        self,
+        q: Sequence[float],
+        link_masses: Sequence[float] | None = None,
+        payload_mass: float = 0.0,
+        gravity: float = 9.81,
+    ) -> np.ndarray:
+        """Estimate gravitational joint torques using simplified statics.
+
+        Each joint torque is approximated as the sum of gravitational
+        moments from all links distal to that joint.  Link masses are
+        approximated as point masses located at the midpoint of each link.
+
+        This is a *simplified* estimate — it ignores link inertia tensors
+        and assumes all joints are revolute rotating about their local
+        z-axis.  For precise dynamics use a full Newton-Euler or
+        Lagrangian formulation.
+
+        Args:
+            q: Joint angles in radians.
+            link_masses: Mass of each variable link in kg.  Length must
+                equal ``n_dof``.  If ``None``, all links are assumed
+                massless and only the payload contributes.
+            payload_mass: Mass of the tool/payload at the end-effector
+                (kg).  Default is 0.
+            gravity: Gravitational acceleration magnitude (m/s²).
+                Default is 9.81.
+
+        Returns:
+            ``(n_dof,)`` array of gravitational torques in N·m.  Positive
+            torque acts in the direction of increasing joint angle.
+
+        Example::
+
+            masses = [0.5, 0.3]       # 0.5 kg link 1, 0.3 kg link 2
+            tau = robot.gravity_torques([0.5, -0.3], link_masses=masses,
+                                        payload_mass=0.1)
+        """
+        q_arr = np.asarray(q, dtype=np.float64).ravel()
+        if q_arr.size != self.n_dof:
+            raise ValidationError(
+                f"Expected {self.n_dof} joint angles, got {q_arr.size}"
+            )
+
+        if link_masses is None:
+            masses = np.zeros(self.n_dof, dtype=np.float64)
+        else:
+            masses = np.asarray(link_masses, dtype=np.float64).ravel()
+            if masses.size != self.n_dof:
+                raise ValidationError(
+                    f"link_masses length {masses.size} != n_dof {self.n_dof}"
+                )
+
+        # Get all joint positions
+        all_positions = self.joint_positions(q_arr)
+        # all_positions[0] = base (origin), all_positions[-1] = end-effector
+
+        # Gravity vector (pointing down in world z)
+        g_vec = np.array([0.0, 0.0, -gravity], dtype=np.float64)
+
+        torques = np.zeros(self.n_dof, dtype=np.float64)
+
+        for joint_idx in range(self.n_dof):
+            # Joint origin position
+            joint_pos = all_positions[joint_idx]
+
+            # Torque from each distal link's centre-of-mass
+            for link_idx in range(joint_idx, self.n_dof):
+                if masses[link_idx] == 0.0:
+                    continue
+                # Approximate CoM at midpoint between link origin and next joint
+                com = 0.5 * (all_positions[link_idx] + all_positions[link_idx + 1])
+                r = com - joint_pos  # moment arm
+
+                # Gravitational force on this link mass
+                f = masses[link_idx] * g_vec
+
+                # Torque = r × F, projected onto joint z-axis
+                # Joint z-axis is world z for planar arms; for 3-D use the
+                # joint's local z from the cumulative transform
+                torque_vec = np.cross(r, f)
+                torques[joint_idx] += torque_vec[2]  # z-component
+
+            # Torque from end-effector payload
+            if payload_mass > 0.0:
+                r_ee = all_positions[-1] - joint_pos
+                f_ee = payload_mass * g_vec
+                torque_ee = np.cross(r_ee, f_ee)
+                torques[joint_idx] += torque_ee[2]
+
+        return torques
+
+    async def solve_ik_async(
+        self,
+        position: Sequence[float],
+        solver_name: str = "damped_least_squares",
+        q0: Sequence[float] | None = None,
+    ) -> IKSolution:
+        """Asynchronous inverse kinematics solve.
+
+        Runs :meth:`solve_ik` in a thread pool so it does not block the
+        event loop when used in an ``asyncio``-based server or control loop.
+
+        Args:
+            position: Target ``[x, y]`` or ``[x, y, z]`` position in metres.
+            solver_name: Registered IK solver name.
+            q0: Optional initial joint-angle guess.
+
+        Returns:
+            :class:`IKSolution` with convergence details.
+
+        Example::
+
+            import asyncio
+
+            async def main():
+                result = await robot.solve_ik_async([1.0, 0.5])
+                print(result.success)
+
+            asyncio.run(main())
+        """
+        import asyncio
+        import functools
+        return await asyncio.get_event_loop().run_in_executor(
+            None,
+            functools.partial(self.solve_ik, position, solver_name, q0),
+        )
+
+    def fk_batch(
+        self,
+        q_array: np.ndarray,
+        full: bool = False,
+    ) -> np.ndarray | list[EndEffectorPose]:
+        """Compute forward kinematics for many joint configurations at once.
+
+        Convenience wrapper around :func:`~roboarm.kinematics.batch.batch_fk`
+        that is discoverable directly on the robot model.
+
+        Args:
+            q_array: ``(N, n_dof)`` array of joint configurations in radians.
+            full: If ``False`` (default), return an ``(N, 3)`` position array.
+                If ``True``, return a list of :class:`EndEffectorPose` objects.
+
+        Returns:
+            ``(N, 3)`` float64 position array, or list of
+            :class:`EndEffectorPose` when *full* is ``True``.
+
+        Example::
+
+            import numpy as np
+            Q = np.random.uniform(-np.pi, np.pi, (1000, robot.n_dof))
+            positions = robot.fk_batch(Q)   # (1000, 3)
+        """
+        from roboarm.kinematics.batch import batch_fk
+        return batch_fk(self, q_array, full=full)
+
+    def ik_batch(
+        self,
+        targets: Sequence[Sequence[float]],
+        solver_name: str = "damped_least_squares",
+        q0_list: Sequence[Sequence[float]] | None = None,
+        warm_start: bool = True,
+    ) -> list[IKSolution]:
+        """Solve inverse kinematics for many target positions at once.
+
+        Convenience wrapper around :func:`~roboarm.kinematics.batch.batch_ik`.
+
+        Args:
+            targets: Sequence of ``[x, y]`` or ``[x, y, z]`` target positions.
+            solver_name: IK solver registry name.
+            q0_list: Optional per-target initial guesses.
+            warm_start: If ``True`` (default), use the previous solution as
+                the initial guess for the next target (warm-start chaining).
+
+        Returns:
+            List of :class:`IKSolution` objects in the same order as *targets*.
+
+        Example::
+
+            targets = [(1.0, 0.5), (0.8, 0.6), (1.2, 0.3)]
+            results = robot.ik_batch(targets)
+        """
+        from roboarm.kinematics.batch import batch_ik
+        return batch_ik(
+            self,
+            targets,
+            solver_name=solver_name,
+            q0_list=q0_list,
+            warm_start=warm_start,
         )

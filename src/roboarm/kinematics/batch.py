@@ -71,6 +71,7 @@ def batch_ik(
     targets: Sequence[Sequence[float]],
     solver_name: str = "damped_least_squares",
     q0_list: Sequence[Sequence[float]] | None = None,
+    warm_start: bool = True,
 ) -> list[IKSolution]:
     """Solve inverse kinematics for many target positions at once.
 
@@ -79,7 +80,11 @@ def batch_ik(
         targets: Sequence of target positions, each ``[x, y]`` or
             ``[x, y, z]``.
         solver_name: IK solver registry name.
-        q0_list: Optional per-target initial guesses.
+        q0_list: Optional per-target initial guesses.  When provided, its
+            length must match *targets*.
+        warm_start: If ``True`` (default), use the previous solution as the
+            initial guess for the next target (warm-start chaining).
+            Ignored when *q0_list* is supplied.
 
     Returns:
         List of :class:`~roboarm.core.types.IKSolution` objects, one per
@@ -99,6 +104,8 @@ def batch_ik(
 
     solver = IKSolverRegistry.create(solver_name, robot)
 
+    prev_q: list[float] | None = None  # warm-start chain
+
     results: list[IKSolution] = []
     for idx, target in enumerate(targets):
         pos = np.asarray(target, dtype=np.float64).ravel()
@@ -111,8 +118,29 @@ def batch_ik(
             rotation=np.eye(3, dtype=np.float64),
             transform=T,
         )
-        q0 = None if q0_list is None else q0_list[idx]
-        results.append(solver.solve(pose, q0=q0))
+
+        # Determine initial guess: explicit list > warm-start > zeros
+        if q0_list is not None:
+            if idx >= len(q0_list):
+                raise IndexError(
+                    f"q0_list has {len(q0_list)} entries but targets has "
+                    f"{len(list(targets))} — lengths must match"
+                )
+            q0 = q0_list[idx]
+        elif warm_start and prev_q is not None:
+            q0 = prev_q
+        else:
+            q0 = None
+
+        result = solver.solve(pose, q0=q0)
+        results.append(result)
+
+        # Update warm-start: use solution if successful, else best_attempt
+        if warm_start:
+            if result.success and result.primary is not None:
+                prev_q = result.primary.values.tolist()
+            elif result.best_attempt is not None:
+                prev_q = result.best_attempt.values.tolist()
 
     n = len(results)
     successes = sum(r.success for r in results)

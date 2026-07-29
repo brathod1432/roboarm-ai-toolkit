@@ -63,7 +63,14 @@ class WorkspaceAnalyzer:
         Returns:
             ``True`` if the target is within the approximate workspace.
         """
+        if n_samples <= 0:
+            raise ValueError(f"n_samples must be positive, got {n_samples}")
+        import math
         target = np.asarray(target_position, dtype=np.float64).ravel()[:3]
+        if not all(math.isfinite(float(c)) for c in target):
+            raise ValueError(
+                "target_position contains non-finite values (NaN or Inf)"
+            )
         points = self.sample_workspace(n_samples, seed=seed)
 
         distances = np.linalg.norm(points - target, axis=1)
@@ -99,6 +106,10 @@ class WorkspaceAnalyzer:
             ``(n_samples, 3)`` array of ``[x, y, z]`` end-effector
             positions.
         """
+        if n_samples <= 0:
+            raise ValueError(
+                f"n_samples must be positive, got {n_samples}"
+            )
         limits = self._robot.joint_limits
         n_dof = self._robot.n_dof
         rng = np.random.default_rng(seed)

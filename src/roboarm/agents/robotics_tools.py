@@ -75,6 +75,16 @@ def _solve_ik(
         )
 
     z = target_z if target_z is not None else 0.0
+    # Security: validate coordinates before constructing solver input
+    import math
+    for coord_name, coord_val in [("target_x", target_x), ("target_y", target_y), ("z", z)]:
+        if not math.isfinite(coord_val):
+            return f"Error: coordinate {coord_name!r} is not a finite number: {coord_val!r}"
+        if abs(coord_val) > 1e6:
+            return (
+                f"Error: coordinate {coord_name!r} = {coord_val:.4g} exceeds "
+                "the allowed range of ±1e6 m. Check your units."
+            )
     position = np.array([target_x, target_y, z], dtype=np.float64)
     transform = np.eye(4, dtype=np.float64)
     transform[:3, 3] = position
@@ -189,6 +199,16 @@ def _compare_solvers(
         )
 
     z = target_z if target_z is not None else 0.0
+    # Security: validate coordinates before constructing solver input
+    import math
+    for coord_name, coord_val in [("target_x", target_x), ("target_y", target_y), ("z", z)]:
+        if not math.isfinite(coord_val):
+            return f"Error: coordinate {coord_name!r} is not a finite number: {coord_val!r}"
+        if abs(coord_val) > 1e6:
+            return (
+                f"Error: coordinate {coord_name!r} = {coord_val:.4g} exceeds "
+                "the allowed range of ±1e6 m. Check your units."
+            )
     position = np.array([target_x, target_y, z], dtype=np.float64)
     transform = np.eye(4, dtype=np.float64)
     transform[:3, 3] = position

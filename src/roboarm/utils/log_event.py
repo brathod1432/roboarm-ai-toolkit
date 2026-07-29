@@ -74,3 +74,38 @@ def log_event(
         else:
             parts.append(f"{k}={v!r}")
     logger.log(level, " ".join(parts))
+
+
+def sanitize_for_log(text: str, max_length: int = 500) -> str:
+    """Sanitize a user-supplied string before including it in a log message.
+
+    Prevents log injection attacks by:
+    * Replacing newlines and carriage returns with a visible marker.
+    * Replacing null bytes and other control characters.
+    * Truncating to *max_length* characters.
+
+    Args:
+        text: Raw user input string.
+        max_length: Maximum length of the returned string.
+
+    Returns:
+        A safe single-line string suitable for log output.
+    """
+    if not isinstance(text, str):
+        text = repr(text)
+    # Replace line-ending control chars with visible markers
+    sanitized = (
+        text
+        .replace("\r\n", "⏎")
+        .replace("\n", "⏎")
+        .replace("\r", "⏎")
+        .replace("\t", "→")
+        .replace("\x00", "")  # strip null bytes
+    )
+    # Strip other ASCII control characters (0-31 except visible ones)
+    sanitized = "".join(
+        ch if ch >= " " or ch in "\t" else "?" for ch in sanitized
+    )
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "…"
+    return sanitized

@@ -29,6 +29,34 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+# Characters that trigger formula execution in spreadsheet software
+_FORMULA_PREFIXES = ("=", "+", "-", "@")
+
+
+def _safe_csv_cell(value: object) -> object:
+    """Protect against CSV formula injection attacks.
+
+    Spreadsheet applications (Excel, LibreOffice, Google Sheets) execute
+    formulas in cells that start with ``=``, ``+``, ``-``, or ``@``.  A
+    maliciously crafted joint name like ``=HYPERLINK(...)`` could exfiltrate
+    data when the CSV is opened.
+
+    This function prepends a tab character to any string cell that starts with
+    a formula trigger character, which is the OWASP-recommended mitigation and
+    is harmless for all legitimate robot parameter names.
+
+    Args:
+        value: The cell value to protect.
+
+    Returns:
+        The original value if it is not a string or does not start with a
+        formula prefix; otherwise a prefixed safe string.
+    """
+    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
+        return "\t" + value
+    return value
+
+
 def save_trajectory_csv(
     path: str | Path,
     trajectory: np.ndarray,
@@ -70,6 +98,12 @@ def save_trajectory_csv(
     else:
         t_arr = np.asarray(timestamps, dtype=np.float64).ravel()
 
+    if t_arr.size != n_steps:
+        raise ValueError(
+            f"timestamps length {t_arr.size} does not match "
+            f"trajectory length {n_steps}"
+        )
+
     if joint_names is None:
         jnames = [f"J{i + 1}_rad" for i in range(n_dof)]
     else:
@@ -83,7 +117,7 @@ def save_trajectory_csv(
     out = Path(path)
     with out.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(header)
+        writer.writerow([_safe_csv_cell(h) for h in header])
         for i in range(n_steps):
             row: list[float] = [t_arr[i]] + traj[i].tolist()
             if include_fk:
@@ -162,17 +196,17 @@ def save_trajectory_npz(
         else np.arange(n_steps, dtype=np.float64)
     )
     meta_json = json.dumps(metadata or {})
-    # Always append '.npz' explicitly so the saved path is always str(path)+'.npz',
-    # regardless of whether numpy would suppress the extension for paths that
-    # already end in '.npz'.
-    out_path = str(path) + ".npz"
+    # Normalize: strip trailing .npz if present, then np.savez_compressed adds it
+    path_str = str(path)
+    if path_str.endswith(".npz"):
+        path_str = path_str[:-4]
     np.savez_compressed(
-        out_path,
+        path_str,
         trajectory=traj,
         timestamps=t_arr,
         metadata_json=np.array(meta_json),
     )
-    logger.info("Trajectory saved to %s (%d steps)", out_path, n_steps)
+    logger.info("Trajectory saved to %s.npz (%d steps)", path_str, n_steps)
 
 
 def load_trajectory_npz(
@@ -186,11 +220,13 @@ def load_trajectory_npz(
     Returns:
         ``(trajectory, timestamps, metadata)`` tuple.
     """
-    src = Path(path)
-    archive = np.load(str(src), allow_pickle=False)
+    path_str = str(path)
+    if not path_str.endswith(".npz"):
+        path_str = path_str + ".npz"
+    archive = np.load(path_str, allow_pickle=False)
     traj = archive["trajectory"]
     timestamps = archive["timestamps"]
     meta_json = str(archive["metadata_json"])
     metadata: dict[str, Any] = json.loads(meta_json)
-    logger.info("Trajectory loaded from %s (%d steps)", src, len(traj))
+    logger.info("Trajectory loaded from %s (%d steps)", path_str, len(traj))
     return traj, timestamps, metadata

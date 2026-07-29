@@ -35,7 +35,9 @@ from roboarm.trajectory.io import (
 from roboarm.trajectory.lspb import lspb, multi_joint_lspb
 from roboarm.trajectory.multipoint import via_point_trajectory
 from roboarm.trajectory.validation import (
+    AccelerationViolation,
     LimitViolation,
+    SafeZoneViolation,
     SingularityWarning,
     TrajectoryReport,
     TrajectoryValidator,
@@ -46,7 +48,9 @@ __all__ = [
     "TrajectoryAnalyzer",
     "TrajectoryMetrics",
     # Validation
+    "AccelerationViolation",
     "LimitViolation",
+    "SafeZoneViolation",
     "SingularityWarning",
     "TrajectoryReport",
     "TrajectoryValidator",

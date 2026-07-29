@@ -68,6 +68,7 @@ HOME_POSE_DEG: list[float] = [0.0, 90.0, 0.0, 0.0, 180.0, 0.0]
 HOME_POSE_RAD: np.ndarray = np.array(
     [deg * _DEG2RAD for deg in HOME_POSE_DEG], dtype=np.float64
 )
+HOME_POSE_RAD.flags.writeable = False
 """Default home configuration in radians."""
 
 
@@ -132,4 +133,6 @@ def create_six_dof_mdh() -> RobotArm:
         sum(1 for j in joints if j.is_variable),
     )
 
-    return RobotArm(joints, name="6-DOF MDH Robot")
+    robot = RobotArm(joints, name="6-DOF MDH Robot")
+    robot.save_pose("home", HOME_POSE_RAD)
+    return robot

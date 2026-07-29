@@ -23,7 +23,8 @@ from __future__ import annotations
 import logging
 import math
 
-from roboarm.core.robot import RobotArm
+from roboarm.core.exceptions import ValidationError
+from roboarm.core.robot import _MAX_JOINTS, RobotArm
 from roboarm.core.types import DHParams, JointConfig, JointLimits
 
 logger = logging.getLogger(__name__)
@@ -86,6 +87,15 @@ class RobotBuilder:
         def to_rad(v: float) -> float:
             return math.radians(v) if limits_in_degrees else v
 
+        for param_name, param_val in [
+            ("a", a), ("d", d), ("alpha", alpha), ("theta_offset", theta_offset),
+        ]:
+            if not math.isfinite(float(param_val)):
+                raise ValidationError(
+                    f"RobotBuilder.add_revolute(): '{param_name}' must be finite, "
+                    f"got {param_val!r}"
+                )
+
         dh = DHParams(
             alpha=to_rad(alpha),
             a=float(a),
@@ -133,6 +143,13 @@ class RobotBuilder:
         def to_rad(v: float) -> float:
             return math.radians(v) if in_degrees else v
 
+        for param_name, param_val in [("a", a), ("d", d), ("alpha", alpha), ("theta", theta)]:
+            if not math.isfinite(float(param_val)):
+                raise ValidationError(
+                    f"RobotBuilder.add_fixed(): '{param_name}' must be finite, "
+                    f"got {param_val!r}"
+                )
+
         dh = DHParams(
             alpha=to_rad(alpha),
             a=float(a),
@@ -156,6 +173,8 @@ class RobotBuilder:
         """
         if not self._joints:
             raise ValueError("Add at least one joint before calling build().")
+        if len(self._joints) > _MAX_JOINTS:
+            raise ValueError(f"Robot has {len(self._joints)} joints, max is {_MAX_JOINTS}")
         robot = RobotArm(list(self._joints), name=self._name)
         logger.info("RobotBuilder: built %r (%d DOF)", self._name, robot.n_dof)
         return robot
